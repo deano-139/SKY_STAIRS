@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     host: "0.0.0.0",
-    base: "sky_stairs",
+    base: "/SKY_STAIRS/",
     port: 3000,
     strictPort: true,
     hmr: {
