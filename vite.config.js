@@ -3,10 +3,10 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+  base: '/SKY_STAIRS/', // Moved to the root level
   plugins: [react(), tailwindcss()],
   server: {
     host: "0.0.0.0",
-    base: "/SKY_STAIRS/",
     port: 3000,
     strictPort: true,
     hmr: {
