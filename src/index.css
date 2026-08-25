@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #12081f;
+  --panel: #241242;
+  --panel-2: #2e1854;
+  --line: #6d48b8;
+  --gold: #ffd23f;
+  --mint: #3ff2c8;
+  --coral: #ff5d7e;
+  --cream: #fff3dc;
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  font-family: "VT323", monospace;
+  color: var(--cream);
+  overscroll-behavior: none;
+}
+
+.font-display { font-family: "Press Start 2P", monospace; }
+.font-body { font-family: "VT323", monospace; }
+
+::selection { background: var(--gold); color: #241242; }
+
+/* pixel-perfect canvas upscale */
+canvas {
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+/* ------- chunky pixel button ------- */
+.btn-arcade {
+  font-family: "Press Start 2P", monospace;
+  letter-spacing: 0.02em;
+  border: 3px solid var(--ink);
+  border-radius: 2px;
+  box-shadow:
+    inset -3px -3px 0 rgba(0, 0, 0, 0.32),
+    inset 3px 3px 0 rgba(255, 255, 255, 0.28),
+    0 6px 0 var(--ink);
+  transition: transform 0.06s steps(2), box-shadow 0.06s steps(2), filter 0.1s steps(2);
+  cursor: pointer;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  image-rendering: pixelated;
+}
+.btn-arcade:hover { transform: translateY(-2px); box-shadow: inset -3px -3px 0 rgba(0,0,0,0.32), inset 3px 3px 0 rgba(255,255,255,0.28), 0 8px 0 var(--ink); filter: brightness(1.08); }
+.btn-arcade:active { transform: translateY(4px); box-shadow: inset -3px -3px 0 rgba(0,0,0,0.32), inset 3px 3px 0 rgba(255,255,255,0.28), 0 2px 0 var(--ink); }
+
+.btn-primary { background: #ffd23f; color: #3a1d05; }
+.btn-mint    { background: #3ff2c8; color: #04302a; }
+.btn-coral   { background: #ff5d7e; color: #3d0512; }
+.btn-plum    { background: #5d3a9e; color: #efe6ff; }
+
+/* ------- pixel keycap ------- */
+.keycap {
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #ffe9b0;
+  background: #2a1650;
+  border: 2px solid #7c56c9;
+  border-radius: 2px;
+  padding: 6px 8px 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset -2px -2px 0 rgba(0,0,0,0.45), inset 2px 2px 0 rgba(255,255,255,0.12), 0 4px 0 var(--ink);
+  white-space: nowrap;
+}
+
+/* ------- pixel panel ------- */
+.panel-arcade {
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  border-radius: 2px;
+  box-shadow:
+    inset -3px -3px 0 rgba(0, 0, 0, 0.35),
+    inset 3px 3px 0 rgba(255, 255, 255, 0.08),
+    0 8px 0 rgba(10, 4, 24, 0.9);
+}
+
+.chip {
+  background: rgba(18, 8, 36, 0.9);
+  border: 2px solid var(--ink);
+  border-radius: 2px;
+  box-shadow: inset 2px 2px 0 rgba(124, 86, 201, 0.35), 0 4px 0 rgba(10, 4, 24, 0.8);
+}
+
+/* ------- CRT flavor ------- */
+.scanlines {
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 0px,
+    rgba(255, 255, 255, 0.03) 1px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0) 3px
+  );
+}
+
+@keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.animate-floaty { animation: floaty 1.6s steps(4) infinite; }
+
+@keyframes popIn { 0% { transform: scale(0.8) translateY(10px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+.animate-pop { animation: popIn 0.24s steps(4) both; }
+
+/* hard retro blink */
+@keyframes hardBlink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0; } }
+.blink { animation: hardBlink 1s steps(1) infinite; }
+
+@keyframes wobble { 0%,100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+.animate-wobble { animation: wobble 2s steps(6) infinite; }
+
+.skin-card {
+  transition: transform 0.1s steps(3), box-shadow 0.1s steps(3);
+  image-rendering: pixelated;
+}
+.skin-card:hover { transform: translateY(-4px); }
+
+/* pixel heading shadow (no gradient text in pixel land) */
+.pixel-shadow { text-shadow: 0 4px 0 var(--ink), 4px 0 0 var(--ink), 0 -2px 0 var(--ink), -2px 0 0 var(--ink); }
+.pixel-shadow-sm { text-shadow: 0 2px 0 var(--ink); }
+
+/* big on-screen touch buttons */
+.touch-btn {
+  width: 9rem;
+  min-height: 6.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.85rem 0.5rem;
+  background: rgba(30, 13, 56, 0.92);
+  border: 3px solid #7c56c9;
+  border-radius: 6px;
+  box-shadow: 0 6px 0 #12081f, inset 0 3px 0 rgba(255, 255, 255, 0.12);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+}
+.touch-btn-mint { border-color: #3ff2c8; box-shadow: 0 6px 0 #0b4a3e, inset 0 3px 0 rgba(255,255,255,0.14), 0 0 18px rgba(63,242,200,0.28); }
+.touch-btn-gold { border-color: #ffd23f; box-shadow: 0 6px 0 #6b4c06, inset 0 3px 0 rgba(255,255,255,0.14), 0 0 18px rgba(255,210,63,0.28); }
+.touch-btn:active {
+  transform: translateY(5px);
+  box-shadow: 0 1px 0 #12081f, inset 0 3px 0 rgba(255, 255, 255, 0.08);
+  filter: brightness(1.25);
+}
+@media (min-width: 640px) {
+  .touch-btn { width: 10rem; min-height: 6.5rem; }
+}
