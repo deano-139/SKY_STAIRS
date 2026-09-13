@@ -24,7 +24,10 @@ jobs:
           node-version: '24'
           cache: 'npm'
       - run: npm ci
-      - run: npm run build
+      - name: Build
+        run: npm run build
+        env:
+          VITE_TALO_KEY: ${{ secrets.VITE_TALO_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'
