@@ -5,7 +5,9 @@ import SkinAvatar from "./SkinAvatar";
 import {
   fetchLeaderboard,
   getAliasId,
+  getAccountOverview,
   hasTalo,
+  type AccountOverview,
   type LeaderboardEntry,
 } from "../game/talo";
 
@@ -104,6 +106,66 @@ function SoundToggle({ muted, onToggle }: { muted: boolean; onToggle: () => void
   );
 }
 
+/* ---------- account overview card ---------- */
+
+export function AccountCard({
+  overview,
+  onLogout,
+}: {
+  overview: AccountOverview;
+  onLogout?: () => void;
+}) {
+  return (
+    <div className="panel-arcade w-full px-4 py-3 text-left">
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[#3ff2c8]"><TrophyIcon /></span>
+          <div className="leading-tight">
+            <div className="text-sm font-body tracking-[0.22em] text-[#b9a5e8]">LOGGED IN AS</div>
+            <div className="font-display text-[11px] text-[#fff3dc] mt-0.5 truncate max-w-[10rem]">
+              {overview.identifier}
+            </div>
+          </div>
+        </div>
+        {onLogout && (
+          <button onClick={onLogout} className="btn-arcade btn-coral px-3 h-9 text-[9px]">
+            LOGOUT
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Stat label="BEST" value={overview.bestScore} accent="#3ff2c8" />
+        <Stat
+          label="RANK"
+          value={overview.position ? `#${overview.position}` : "—"}
+          accent="#ffd23f"
+        />
+        <Stat label="RUNS" value={overview.totalRuns} accent="#8fa0ff" />
+        <Stat label="COINS" value={overview.totalCoins} accent="#ffd23f" />
+      </div>
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number | string;
+  accent: string;
+}) {
+  return (
+    <div className="chip px-3 py-2 leading-tight">
+      <div className="text-[9px] font-body tracking-[0.22em] text-[#b9a5e8]">{label}</div>
+      <div className="font-body font-bold text-lg tabular-nums mt-0.5" style={{ color: accent }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- START ---------- */
 export function StartScreen(props: {
   wallet: number;
@@ -112,6 +174,7 @@ export function StartScreen(props: {
   muted: boolean;
   loggedIn: boolean;
   username: string | null;
+  overview: AccountOverview | null;
   onStart: () => void;
   onShop: () => void;
   onLeaderboard: () => void;
@@ -155,9 +218,18 @@ export function StartScreen(props: {
             <div className="mt-3 font-display text-[10px] sm:text-xs text-[#ffd23f] blink pixel-shadow-sm">
               PRESS ANY SHIFT TO START
             </div>
+            <div className="mt-2 text-base font-body text-[#b9a5e8]">
+              Q / ← turn+climb · E / → climb
+            </div>
           </div>
         </div>
       </div>
+
+      {props.loggedIn && props.overview && (
+        <div className="pointer-events-auto mb-3 max-w-md">
+          <AccountCard overview={props.overview} />
+        </div>
+      )}
 
       <div className="flex items-end justify-between gap-3 pointer-events-auto">
         <div className="flex items-center gap-2">
@@ -167,7 +239,7 @@ export function StartScreen(props: {
             </button>
           ) : (
             <button onClick={props.onLogin} className="btn-arcade btn-mint px-4 h-12 text-[10px]">
-              LOGIN
+              LOGIN / SIGN UP
             </button>
           )}
         </div>
@@ -221,6 +293,7 @@ export function LoginScreen(props: {
           onChange={(e) => setUsername(e.target.value)}
           className="w-full mb-3 px-3 py-2 bg-[#1d0f3a] border-2 border-[#6d48b8] text-[#fff3dc] font-body rounded-sm focus:border-[#3ff2c8] outline-none"
           required
+          autoComplete="username"
         />
         <input
           type="password"
@@ -229,6 +302,7 @@ export function LoginScreen(props: {
           onChange={(e) => setPassword(e.target.value)}
           className="w-full mb-4 px-3 py-2 bg-[#1d0f3a] border-2 border-[#6d48b8] text-[#fff3dc] font-body rounded-sm focus:border-[#3ff2c8] outline-none"
           required
+          autoComplete={isRegister ? "new-password" : "current-password"}
         />
         <button type="submit" className="btn-arcade btn-primary w-full h-12 mb-3 text-xs">
           {isRegister ? "CREATE ACCOUNT" : "LOGIN"}
@@ -265,10 +339,13 @@ export function GameOverScreen(props: {
   onShop: () => void;
   onLeaderboard: () => void;
   onMenu: () => void;
+  onLogin: () => void;
+  loggedIn: boolean;
+  overview: AccountOverview | null;
 }) {
   return (
-    <div className="absolute inset-0 bg-[#0d041f]/55 flex items-center justify-center p-4 pointer-events-auto">
-      <div className="panel-arcade w-full max-w-md px-6 py-6 sm:px-8 sm:py-7 animate-pop text-center relative overflow-hidden">
+    <div className="absolute inset-0 bg-[#0d041f]/55 flex items-center justify-center p-4 pointer-events-auto overflow-y-auto">
+      <div className="panel-arcade w-full max-w-md px-6 py-6 sm:px-8 sm:py-7 animate-pop text-center relative my-auto">
         <div className="font-display text-xl sm:text-2xl text-[#ff5d7e] pixel-shadow">
           YOU TUMBLED
         </div>
@@ -302,7 +379,13 @@ export function GameOverScreen(props: {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3">
+        {props.loggedIn && props.overview && (
+          <div className="mt-5">
+            <AccountCard overview={props.overview} />
+          </div>
+        )}
+
+        <div className="mt-5 flex flex-col gap-3">
           <button onClick={props.onRetry} className="btn-arcade btn-primary h-14 text-[11px] sm:text-xs">
             CLIMB AGAIN
             <span className="hidden sm:inline text-[9px] opacity-70 ml-1">(ANY SHIFT)</span>
@@ -322,6 +405,39 @@ export function GameOverScreen(props: {
             Wallet: <span className="text-[#ffd23f] font-bold tabular-nums">{props.wallet}</span> coins — spend them wisely.
           </div>
         </div>
+      </div>
+
+      {!props.loggedIn && props.newBest && (
+        <PostRunLoginPrompt onLogin={props.onLogin} />
+      )}
+    </div>
+  );
+}
+
+/* ---------- POST-RUN LOGIN PROMPT ---------- */
+export function PostRunLoginPrompt({ onLogin }: { onLogin: () => void }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 700);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[min(24rem,calc(100%-2rem))] animate-pop pointer-events-auto">
+      <div className="panel-arcade px-4 py-3 flex items-center gap-3">
+        <div className="text-2xl shrink-0">🏆</div>
+        <div className="flex-1 text-left leading-tight">
+          <div className="font-display text-[10px] text-[#ffd23f]">NEW BEST!</div>
+          <div className="text-base font-body text-[#b9a5e8] mt-0.5">
+            Sign in to save your score forever &amp; sync coins.
+          </div>
+        </div>
+        <button onClick={onLogin} className="btn-arcade btn-primary px-3 h-10 text-[10px] shrink-0">
+          SIGN IN
+        </button>
       </div>
     </div>
   );
@@ -574,21 +690,21 @@ export function TouchControls({ onBack, onFwd }: { onBack: () => void; onFwd: ()
         onPointerDown={press(onBack)}
         onContextMenu={(e) => e.preventDefault()}
         className="touch-btn touch-btn-mint pointer-events-auto text-[#3ff2c8]"
-        aria-label="Turn and climb (L-SHIFT)"
+        aria-label="Turn and climb"
       >
         <TurnClimbGlyph />
         <span className="font-display text-[8px] text-[#fff3dc]">TURN+CLIMB</span>
-        <span className="keycap !text-[10px] !px-2 !py-0.5 mt-0.5">L-SHIFT</span>
+        <span className="keycap !text-[10px] !px-2 !py-0.5 mt-0.5">Q / ←</span>
       </button>
       <button
         onPointerDown={press(onFwd)}
         onContextMenu={(e) => e.preventDefault()}
         className="touch-btn touch-btn-gold pointer-events-auto text-[#ffd23f]"
-        aria-label="Climb (R-SHIFT)"
+        aria-label="Climb"
       >
         <ClimbGlyph />
         <span className="font-display text-[8px] text-[#fff3dc]">CLIMB</span>
-        <span className="keycap !text-[10px] !px-2 !py-0.5 mt-0.5">R-SHIFT</span>
+        <span className="keycap !text-[10px] !px-2 !py-0.5 mt-0.5">E / →</span>
       </button>
     </div>
   );

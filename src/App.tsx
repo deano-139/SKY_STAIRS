@@ -16,10 +16,15 @@ import {
   submitScore,
   saveGameState,
   loadGameState,
+  getAccountOverview,
+  incrementStat,
   isLoggedIn,
   hasTalo,
-  getIdentifier,// eror
+  getIdentifier,
+  login,
+  register,
   logout,
+  type AccountOverview,
 } from "./game/talo";
 
 const SAVE_KEY = "skysteps-save-v1";
@@ -50,6 +55,7 @@ function loadSave(): SaveData {
 }
 
 type Screen = "menu" | "playing" | "gameover" | "login";
+type LoginReturn = "menu" | "gameover";
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -73,10 +79,20 @@ export default function App() {
   const [lastRun, setLastRun] = useState<RunResult | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState(isLoggedIn());
+  const [overview, setOverview] = useState<AccountOverview | null>(null);
+  const loginReturnRef = useRef<LoginReturn>("menu");
 
   /* keep engine's best/wallet copies fresh */
   useEffect(() => { engineRef.current?.setBest(best); }, [best]);
   useEffect(() => { engineRef.current?.setWallet(wallet); }, [wallet]);
+
+  /* Gate the engine's keyboard/pointer input based on UI state.
+     This is what stops Shift on the login screen from starting a run. */
+  useEffect(() => {
+    const enabled =
+      screen === "playing" && !paused && !shopOpen && !leaderboardOpen;
+    engineRef.current?.setInputEnabled(enabled);
+  }, [screen, paused, shopOpen, leaderboardOpen]);
 
   /* Talo: create anonymous player for leaderboard if not logged in */
   useEffect(() => {
@@ -85,6 +101,14 @@ export default function App() {
       void initAnonymousPlayer();
     }
   }, []);
+
+  /* Refresh account overview whenever we're logged in and back on menu/gameover */
+  useEffect(() => {
+    if (!loggedIn) { setOverview(null); return; }
+    if (screen === "menu" || screen === "gameover") {
+      void getAccountOverview().then((o) => setOverview(o));
+    }
+  }, [loggedIn, screen]);
 
   /* boot engine once */
   useEffect(() => {
@@ -105,6 +129,11 @@ export default function App() {
           setBest(r.best);
           setScreen("gameover");
           void submitScore(r.stairs);
+          if (isLoggedIn()) {
+            void incrementStat("total_runs", 1);
+            void incrementStat("total_stairs", r.stairs);
+            if (r.runCoins > 0) void incrementStat("total_coins", r.runCoins);
+          }
         },
         onCoin: () => setWallet((w) => w + 1),
         onPauseChange: (p) => setPaused(p),
@@ -216,34 +245,46 @@ export default function App() {
     setLeaderboardOpen(true);
   }, [screen, paused]);
 
-  const handleLogin = useCallback(async (username: string, password: string, isRegister: boolean) => {
+  const openLogin = useCallback((returnTo: LoginReturn) => {
+    loginReturnRef.current = returnTo;
     setLoginError(null);
-    const result = isRegister
-      ? await (await import("./game/talo")).register(username, password)
-      : await (await import("./game/talo")).login(username, password);
-
-    if (result.ok) {
-      setLoggedIn(true);
-      const saved = await loadGameState();
-      if (saved) {
-        setBest(saved.best);
-        setWallet(saved.wallet);
-        setOwned(saved.ownedSkins);
-        setSelected(saved.selectedSkin);
-        setMuted(saved.muted);
-        engineRef.current?.setBest(saved.best);
-        engineRef.current?.setWallet(saved.wallet);
-        engineRef.current?.setSkin(skinById(saved.selectedSkin));
-      }
-      setScreen("menu");
-    } else {
-      setLoginError(result.error || "Something went wrong");
-    }
+    setScreen("login");
   }, []);
+
+  const handleLogin = useCallback(
+    async (username: string, password: string, isRegister: boolean) => {
+      setLoginError(null);
+      const result = isRegister
+        ? await register(username, password)
+        : await login(username, password);
+
+      if (result.ok) {
+        setLoggedIn(true);
+        const saved = await loadGameState();
+        if (saved) {
+          setBest(saved.best);
+          setWallet(saved.wallet);
+          setOwned(saved.ownedSkins);
+          setSelected(saved.selectedSkin);
+          setMuted(saved.muted);
+          engineRef.current?.setBest(saved.best);
+          engineRef.current?.setWallet(saved.wallet);
+          engineRef.current?.setSkin(skinById(saved.selectedSkin));
+        }
+        const o = await getAccountOverview();
+        setOverview(o);
+        setScreen(loginReturnRef.current);
+      } else {
+        setLoginError(result.error || "Something went wrong");
+      }
+    },
+    []
+  );
 
   const handleLogout = useCallback(() => {
     logout();
     setLoggedIn(false);
+    setOverview(null);
     setScreen("menu");
   }, []);
 
@@ -261,10 +302,11 @@ export default function App() {
             muted={muted}
             loggedIn={loggedIn}
             username={getIdentifier()}
+            overview={overview}
             onStart={handleStart}
             onShop={openShop}
             onLeaderboard={openLeaderboard}
-            onLogin={() => setScreen("login")}
+            onLogin={() => openLogin("menu")}
             onLogout={handleLogout}
             onToggleMute={handleToggleMute}
           />
@@ -274,7 +316,7 @@ export default function App() {
           <LoginScreen
             onLogin={(u, p) => handleLogin(u, p, false)}
             onRegister={(u, p) => handleLogin(u, p, true)}
-            onBack={() => { setLoginError(null); setScreen("menu"); }}
+            onBack={() => { setLoginError(null); setScreen(loginReturnRef.current); }}
             error={loginError}
           />
         )}
@@ -312,6 +354,9 @@ export default function App() {
             onShop={openShop}
             onLeaderboard={openLeaderboard}
             onMenu={handleMenu}
+            onLogin={() => openLogin("gameover")}
+            loggedIn={loggedIn}
+            overview={overview}
           />
         )}
 

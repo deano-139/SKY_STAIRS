@@ -11,8 +11,11 @@ import {
 
 /* ============================================================= */
 /*  SkySteps engine — pixel-art endless staircase climber.       */
-/*  L-SHIFT = turn around + climb the step behind you.           */
-/*  R-SHIFT = climb the step ahead of you, no turning.           */
+/*                                                               */
+/*  Controls:                                                    */
+/*    Q / ← / A / L-SHIFT  = turn around AND climb               */
+/*    E / → / D / R-SHIFT  = climb without turning               */
+/*    ESC / P              = pause                               */
 /* ============================================================= */
 
 export interface RunResult {
@@ -61,7 +64,7 @@ interface Cloud { x: number; y: number; s: number; }
 const JUMP_T = 0.135;
 const TURN_T = 0.11;
 const SAVE_ALT = 700; // stairs at which sky/stairs fully shift palette
-const MAX_RUN = 7;    // max consecutive steps in the same direction (long straight runs, fewer turns)
+const MAX_RUN = 7;    // max consecutive steps in the same direction
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -119,6 +122,11 @@ export class SkyStepsEngine {
   best = 0;
   skin: SkinDef;
 
+  /* when false, keyboard + pointer input is ignored entirely.
+     React toggles this on non-playing screens (login/shop/etc) so pressing
+     Shift in the login form doesn't start a run. */
+  private inputEnabled = true;
+
   /* milestone climbers already owned (seeded from localStorage by App) */
   private milestoneOwned = new Set<string>();
 
@@ -133,7 +141,7 @@ export class SkyStepsEngine {
   private upRunDir: Side = 1;
   private upRunLen = 0;
   private idx = 0;
-  private groundIdx = -1; // the wide rooftop/ground the run starts from
+  private groundIdx = -1;
   stairs = 0;
   runCoins = 0;
   private bar = 100;
@@ -158,8 +166,6 @@ export class SkyStepsEngine {
   private stairPop = 0;
   private runPhase = 0;
   private blinkT = 2;
-  /* buffered presses made mid-jump — a queue of up to 2 so fast mashers
-     never lose a "turn" or a "climb", applied in order on landing */
   private pending: { type: "back" | "fwd"; at: number }[] = [];
 
   /* fx */
@@ -266,7 +272,6 @@ export class SkyStepsEngine {
     this.mode = "menu";
     this.paused = false;
     this.menuTimer = 0.5;
-    /* the tune keeps playing on the menu once it's been unlocked */
   }
 
   setPaused(p: boolean) {
@@ -285,6 +290,9 @@ export class SkyStepsEngine {
   setBest(b: number) { this.best = b; }
   /** Seed which milestone climbers are already owned so we never re-unlock them. */
   setOwnedMilestones(ids: string[]) { this.milestoneOwned = new Set(ids); }
+  /** Gate keyboard + pointer input. Used by React to silence the engine
+      when non-game UI (login, shop, leaderboard) is on screen. */
+  setInputEnabled(v: boolean) { this.inputEnabled = v; }
   setMuted(m: boolean) {
     this.sfx.muted = m;
     this.bgm.setMuted(m);
@@ -298,15 +306,12 @@ export class SkyStepsEngine {
     return { idx, x, y: this.yOf(idx), coin, coinTaken: false, coinPhase: Math.random() * 6.28 };
   }
 
-  /** Random direction with a run cap and a gentle pull back toward center.
-      Wide drift + long runs = gentle sweeping zigzags, not twitchy turns. */
   private pickDir(fromCenter: number, runDir: Side, runLen: number): Side {
     if (runLen >= MAX_RUN) return -runDir as Side;
     const maxDrift = Math.max(this.stepW * 7, this.W * 0.44);
     if (fromCenter + this.stepW > maxDrift) return -1;
     if (fromCenter - this.stepW < -maxDrift) return 1;
-    /* prefer to keep the current run going (fewer turn points), nudged by drift */
-    const driftBias = (fromCenter / maxDrift) * 0.18; // positive = leaning right, so pull left
+    const driftBias = (fromCenter / maxDrift) * 0.18;
     const pContinue = 0.66 - runDir * driftBias;
     return Math.random() < pContinue ? runDir : (-runDir as Side);
   }
@@ -331,17 +336,14 @@ export class SkyStepsEngine {
     const steps: Step[] = [];
     const x0 = -this.stepW / 2;
     steps.push(this.makeStep(centerIdx, x0, false));
-    /* a fresh run (idx 0) begins on a wide rooftop; resizes mid-run keep it */
     if (centerIdx === 0) this.groundIdx = 0;
 
     this.steps = steps;
     this.upRunDir = Math.random() < 0.5 ? -1 : 1;
     this.upRunLen = 0;
     const topCount = Math.ceil((this.H * 0.62 + 220) / this.stepH) + 4;
-    /* first step is always ahead of the climber so the run opens with a simple R-SHIFT hop */
     for (let i = 0; i < topCount; i++) this.pushStepUp(i === 0 ? 1 : undefined);
 
-    /* downward random walk (below the player — the tower continues off-screen) */
     let cx = x0 + this.stepW / 2;
     let dRunDir: Side = Math.random() < 0.5 ? -1 : 1;
     let dRunLen = 0;
@@ -389,7 +391,6 @@ export class SkyStepsEngine {
     return this.makeStep(i, 0, false);
   }
 
-  /** Which side the next step is on relative to the current one. */
   private dirTo(i: number): Side {
     return this.stepAt(i).x >= this.stepAt(i - 1).x ? 1 : -1;
   }
@@ -398,7 +399,6 @@ export class SkyStepsEngine {
 
   /* ------------------------------ input ------------------------------ */
 
-  /** Music needs a user gesture to start (autoplay policy) — unlock once. */
   private unlockAudio() {
     if (this.audioUnlocked) return;
     this.audioUnlocked = true;
@@ -406,34 +406,59 @@ export class SkyStepsEngine {
   }
 
   private keyDown(e: KeyboardEvent) {
+    /* Hard gate: nothing responds while non-game UI is up. */
+    if (!this.inputEnabled) return;
+
+    /* Ignore keys typed into form fields (login screen, etc). */
+    const target = e.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable)
+    ) {
+      return;
+    }
+
     this.unlockAudio();
     const c = e.code;
+
+    /* Pause */
     if (c === "Escape" || c === "KeyP") {
       if (this.mode === "play") { e.preventDefault(); this.togglePause(); }
       return;
     }
-    /* the only two buttons:
-       L-SHIFT ("back")  = turn around AND climb the step now in front of you
-       R-SHIFT ("fwd")   = climb the step in front of you, no turning
 
-       e.location (1 = left, 2 = right) is the most reliable way to tell the
-       two shifts apart: some OS/browser/keyboard combos (iPad keyboards,
-       remote desktop, exotic layouts) misreport or omit e.code entirely.
-       A shift we cannot identify as the LEFT one is treated as the RIGHT
-       one — pure climb, never a turn — so R-SHIFT can never spin you. */
-    const isShiftKey = c === "ShiftLeft" || c === "ShiftRight" || e.key === "Shift";
-    if (!isShiftKey) return;
+    /* "Turn + climb" — L-SHIFT or Q / ← / A */
+    const isBack =
+      c === "ShiftLeft" ||
+      c === "KeyQ" ||
+      c === "ArrowLeft" ||
+      c === "KeyA";
+
+    /* "Climb" — R-SHIFT or E / → / D.
+       A bare Shift we can't identify as the left one is treated as climb,
+       so R-SHIFT (or an unidentified Shift) can never spin you. */
+    const isFwd =
+      c === "ShiftRight" ||
+      c === "KeyE" ||
+      c === "ArrowRight" ||
+      c === "KeyD" ||
+      (c === "Shift" && e.location !== 1);
+
+    if (!isBack && !isFwd) return;
     e.preventDefault();
     if (e.repeat) return;
-    if (e.location === 1 || (e.location === 0 && c === "ShiftLeft")) this.act("back");
-    else this.act("fwd"); // right shift — or any shift we can't prove is left
+
+    if (isBack) this.act("back");
+    else this.act("fwd");
   }
 
   private pointer(e: PointerEvent) {
+    if (!this.inputEnabled) return;
     this.unlockAudio();
     if (this.mode !== "play") return;
     const r = this.canvas.getBoundingClientRect();
-    /* left half = turn & climb, right half = climb (tap fallback) */
     this.act(e.clientX - r.left < r.width / 2 ? "back" : "fwd");
   }
 
@@ -441,12 +466,6 @@ export class SkyStepsEngine {
   pressBack() { this.unlockAudio(); this.act("back"); }
   pressFwd() { this.unlockAudio(); this.act("fwd"); }
 
-  /**
-   * "back" ALWAYS turns you around first, then climbs the step now in front —
-   * it only lands when the next step was behind you. Pressing it while the
-   * step is ahead spins you into the void and you tumble.
-   * "fwd" climbs the step in front of you without turning — ever.
-   */
   private act(type: "back" | "fwd") {
     if (this.mode === "menu") { this.start(); return; }
     if (this.mode === "dying") {
@@ -456,14 +475,13 @@ export class SkyStepsEngine {
     if (this.paused) { this.setPaused(false); return; }
     if (this.pstate === "jump") {
       this.pending.push({ type, at: this.time });
-      if (this.pending.length > 2) this.pending.shift(); // keep only the newest two
+      if (this.pending.length > 2) this.pending.shift();
       return;
     }
-    if (type === "back") this.doTurn(); // unconditional 180° spin
-    this.doClimb(); // succeeds only if facing the next step after any spin
+    if (type === "back") this.doTurn();
+    this.doClimb();
   }
 
-  /** Hop up one step — only works when facing the way the staircase goes. */
   private doClimb() {
     if (this.pstate === "fall") return;
     const want = this.dirTo(this.idx + 1);
@@ -482,7 +500,6 @@ export class SkyStepsEngine {
     this.sfx.jump(this.combo);
   }
 
-  /** Spin to face the other way — always safe, never fails. */
   private doTurn() {
     if (this.pstate === "fall") return;
     this.turnFrom = this.face;
@@ -529,14 +546,12 @@ export class SkyStepsEngine {
       this.menuTimer = 0.2 + Math.random() * 0.16;
     }
 
-    /* drain buffered presses in order — stops when we're airborne again or
-       a press is stale, so rapid mashers never lose a turn or a climb */
     while (this.pending.length) {
       if (this.pstate !== "stand") break;
       if (now - this.pending[0].at >= 0.5) { this.pending.shift(); continue; }
       const p = this.pending.shift()!;
-      if (p.type === "back") this.doTurn(); // L-move: always spins first
-      this.doClimb(); // then climb; buffered R-move climbs with no turn
+      if (p.type === "back") this.doTurn();
+      this.doClimb();
     }
   }
 
@@ -553,7 +568,6 @@ export class SkyStepsEngine {
     this.pending.length = 0;
   }
 
-  /** Fire when the player lands on a stair that awards a milestone climber. */
   private checkMilestoneUnlock() {
     const hit = SKINS.find((s) => s.unlockAt === this.stairs);
     if (!hit || this.milestoneOwned.has(hit.id)) return;
@@ -565,7 +579,6 @@ export class SkyStepsEngine {
     this.cb.onMilestoneUnlocked?.(hit.id);
   }
 
-  /* celebratory multicolour burst */
   private confettiBurst(x: number, y: number) {
     const cols = ["#ffd23f", "#3ff2c8", "#ff5d7e", "#8fa0ff", "#ff8c42", "#b6f04a"];
     for (let i = 0; i < 26; i++) {
@@ -599,19 +612,16 @@ export class SkyStepsEngine {
 
     if (this.paused) return;
 
-    /* menu autopilot demo — turns then climbs, like a player would */
     if (this.mode === "menu") {
       if (this.pstate === "stand") {
         this.menuTimer -= dt;
         if (this.menuTimer <= 0) {
-          /* autopilot plays by the real rules: the L-move (turn + climb) when the step is behind, R-move when ahead */
           if (this.face !== this.dirTo(this.idx + 1)) this.doTurn();
           this.doClimb();
         }
       }
     }
 
-    /* idle shuffle toward the edge being faced */
     if (this.pstate === "stand") {
       const cur = this.stepAt(this.idx);
       const inset = clamp(this.stepW * 0.26, 10, 18);
@@ -622,8 +632,6 @@ export class SkyStepsEngine {
       this.runPhase += Math.abs(target - this.px) > 2 ? dt * 20 : 0;
     }
 
-    /* player jump — easeOut horizontal (quick lunge, soft arrival) over a
-       symmetric hop arc; stretch/squash is handled in drawPlayer */
     if (this.pstate === "jump") {
       this.jt += dt / JUMP_T;
       this.runPhase += dt * 26;
@@ -640,16 +648,12 @@ export class SkyStepsEngine {
       this.runPhase += dt * 14;
     }
 
-    /* energy bar — drains fast and keeps ramping: 12/s at the bottom up to
-       38/s around stair 305. Each step pays back +9, so you need ~1.4
-       steps/s early and a sustained ~4.2 steps/s near the top. */
     if (this.mode === "play" && this.pstate !== "fall") {
       const drain = 12 + Math.min(26, this.stairs * 0.085);
       this.bar -= drain * dt;
       if (this.bar <= 0) { this.bar = 0; this.fail(); }
     }
 
-    /* coins */
     if (this.mode === "play") {
       for (const s of this.steps) {
         if (!s.coin || s.coinTaken) continue;
@@ -668,16 +672,13 @@ export class SkyStepsEngine {
       }
     }
 
-    /* camera follows the climber on both axes */
     if (this.pstate !== "fall") {
-      /* smoothed follow with a small look-ahead toward the way we face */
       const k = 1 - Math.exp(-dt * 10);
       this.cam += (this.py - this.stepH * 0.85 - this.cam) * k;
       const kx = 1 - Math.exp(-dt * 8);
       this.camX += (this.px + this.face * this.stepW * 0.45 - this.camX) * kx;
     }
 
-    /* dying report */
     if (this.mode === "dying") {
       this.deathT += dt;
       if (!this.reported && this.deathT > 0.95) {
@@ -690,7 +691,6 @@ export class SkyStepsEngine {
 
     this.ensureSteps();
 
-    /* particles */
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.life += dt;
@@ -725,7 +725,6 @@ export class SkyStepsEngine {
     }
   }
 
-  /* Character-specific burst when spinning around. */
   private turnBurst() {
     const fx = this.skin.turnFx;
     const col = this.skin.turnColor;
@@ -800,7 +799,6 @@ export class SkyStepsEngine {
   private resize() {
     const cw = Math.max(300, this.canvas.clientWidth || window.innerWidth);
     const ch = Math.max(400, this.canvas.clientHeight || window.innerHeight);
-    /* render at a low internal resolution, upscale chunky via CSS */
     this.SCALE = Math.min(cw, ch) >= 640 ? 3 : 2;
     this.W = Math.max(160, Math.round(cw / this.SCALE));
     this.H = Math.max(200, Math.round(ch / this.SCALE));
@@ -867,7 +865,6 @@ export class SkyStepsEngine {
     ctx.restore();
   }
 
-  /* posterized banded sky — no smooth gradients in pixel land */
   private drawSky(sky: { top: string; mid: string; low: string }) {
     const { ctx, H } = this;
     const BANDS = 14;
@@ -934,9 +931,6 @@ export class SkyStepsEngine {
     ctx.globalAlpha = 1;
   }
 
-  /* City skyline at the start of the climb — you begin on a rooftop and
-     rise up through the town, past the clouds, and into space. The city
-     fades out below you as altitude grows. */
   private drawCity(alt: number) {
     const { ctx, W, H } = this;
     const vis = 1 - smooth(0.02, 0.3, alt);
@@ -944,7 +938,6 @@ export class SkyStepsEngine {
     ctx.globalAlpha = vis;
     const colW = 8;
     const par = 0.35;
-    /* deterministic pseudo-random per column so it's stable across frames */
     const rnd = (i: number, salt: number) => {
       const v = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453;
       return v - Math.floor(v);
@@ -955,20 +948,16 @@ export class SkyStepsEngine {
       const h2 = rnd(i, 2);
       const tall = Math.round(H * (0.16 + h1 * 0.22));
       const top = H - tall;
-      /* far block */
       ctx.fillStyle = mixHex("#5f7fae", "#26375f", alt);
       ctx.fillRect(x, top, colW - 1, tall);
-      /* rooftop cap */
       ctx.fillStyle = mixHex("#7f9cc8", "#33477a", alt);
       ctx.fillRect(x, top, colW - 1, 2);
-      /* occasional spire/antenna */
       if (h2 > 0.82) {
         ctx.fillStyle = mixHex("#463067", "#241a40", alt);
         ctx.fillRect(x + 3, top - 6, 2, 6);
         ctx.fillStyle = "#ff5d7e";
         ctx.fillRect(x + 3, top - 7, 2, 1);
       }
-      /* lit windows */
       for (let wy = top + 5; wy < H - 6; wy += 6) {
         for (let wx = 1; wx < colW - 3; wx += 4) {
           if (rnd(i * 13 + wy * 7 + wx, 3) > 0.62) {
@@ -981,9 +970,6 @@ export class SkyStepsEngine {
     ctx.globalAlpha = 1;
   }
 
-  /* Living sky: hot-air balloons, a passing jet with a contrail, flapping
-     birds near the city — and a drifting satellite once you reach space.
-     All positions derive from this.time, so they're stateless and smooth. */
   private drawAmbient(alt: number) {
     const { ctx, W, H } = this;
     const rnd = (i: number, salt: number) => {
@@ -991,7 +977,6 @@ export class SkyStepsEngine {
       return v - Math.floor(v);
     };
 
-    /* balloons — low altitude morning drift */
     const balVis = smooth(0.03, 0.16, alt) * (1 - smooth(0.4, 0.58, alt));
     if (balVis > 0.02) {
       ctx.globalAlpha = Math.round(balVis * 4) / 4;
@@ -1005,7 +990,6 @@ export class SkyStepsEngine {
       ctx.globalAlpha = 1;
     }
 
-    /* jets crossing with a fading contrail */
     const planeVis = smooth(0.1, 0.28, alt) * (1 - smooth(0.5, 0.66, alt));
     if (planeVis > 0.02) {
       ctx.globalAlpha = Math.round(planeVis * 4) / 4;
@@ -1030,7 +1014,6 @@ export class SkyStepsEngine {
       ctx.globalAlpha = 1;
     }
 
-    /* birds flapping around the rooftops and clouds */
     const birdVis = smooth(0.04, 0.18, alt) * (1 - smooth(0.55, 0.75, alt));
     if (birdVis > 0.02) {
       ctx.globalAlpha = Math.round(birdVis * 4) / 4;
@@ -1046,7 +1029,6 @@ export class SkyStepsEngine {
       ctx.globalAlpha = 1;
     }
 
-    /* a lonely satellite once the sky goes dark */
     const satVis = smooth(0.6, 0.78, alt);
     if (satVis > 0.02) {
       ctx.globalAlpha = Math.round(satVis * 4) / 4;
@@ -1063,8 +1045,6 @@ export class SkyStepsEngine {
     }
   }
 
-  /* Morning commuters strolling across the starting rooftop — the little
-     crowd you're climbing away from. Fades out as you leave the city. */
   private drawWalkers(alt: number) {
     const { ctx } = this;
     const vis = 1 - smooth(0.02, 0.2, alt);
@@ -1081,7 +1061,7 @@ export class SkyStepsEngine {
       const speed = (10 + rnd(i, 41) * 14) * (i % 2 === 0 ? 1 : -1);
       const span = 520;
       let wx = ((rnd(i, 42) * span + this.time * speed) % span + span) % span - span / 2;
-      if (Math.abs(wx) < this.stepW * 2.2) wx += wx >= 0 ? this.stepW * 2.2 : -this.stepW * 2.2; // keep clear of the tower
+      if (Math.abs(wx) < this.stepW * 2.2) wx += wx >= 0 ? this.stepW * 2.2 : -this.stepW * 2.2;
       const x = this.worldToScreenX(wx);
       if (x < -20 || x > this.W + 20) continue;
       const frame = Math.floor(this.time * 3.4 + i) % 2 === 0 ? WALKER_A : WALKER_B;
@@ -1090,7 +1070,6 @@ export class SkyStepsEngine {
     ctx.globalAlpha = 1;
   }
 
-  /* stepped silhouette hills */
   private drawRidges(alt: number) {
     const { ctx, W, H } = this;
     const ridge = (par: number, base: number, amp: number, freq: number, color: string) => {
@@ -1110,8 +1089,6 @@ export class SkyStepsEngine {
     ridge(0.5, H * 0.88, 16, 0.028, c2);
   }
 
-  /* The connected pixel staircase: each step is a solid block (tread + riser)
-     offset from its neighbour by exactly one step width. */
   private drawSteps() {
     const { ctx, W, H, stepW, stepH } = this;
     const TREAD = Math.max(4, Math.round(stepH * 0.24));
@@ -1119,7 +1096,6 @@ export class SkyStepsEngine {
       const sx = this.worldToScreenX(s.x);
       const sy = this.worldToScreenY(s.y);
 
-      /* the starting step renders as a wide rooftop/ground slab */
       if (s.idx === this.groundIdx) {
         this.drawGround(sy, TREAD);
         continue;
@@ -1132,15 +1108,12 @@ export class SkyStepsEngine {
       const front = shadeHex(this.stairColor(s.idx, false), parity ? 0.9 : 1);
       const top = shadeHex(this.stairColor(s.idx, true), parity ? 0.95 : 1);
 
-      /* 1px dark silhouette (acts as the outline) */
       ctx.fillStyle = INK;
       ctx.fillRect(sx - 1, sy - TREAD - 1, stepW + 2, TREAD + stepH + 2);
 
-      /* riser face */
       ctx.fillStyle = front;
       ctx.fillRect(sx, sy, stepW, stepH);
 
-      /* dither texture on the face */
       ctx.fillStyle = "rgba(8,3,22,0.16)";
       const off0 = parity ? 3 : 0;
       for (let yy = 4; yy < stepH - 2; yy += 6) {
@@ -1149,23 +1122,18 @@ export class SkyStepsEngine {
         }
       }
 
-      /* shaded lip under the tread */
       ctx.fillStyle = "rgba(8,3,22,0.28)";
       ctx.fillRect(sx, sy, stepW, 2);
-      /* right-edge shade */
       ctx.fillStyle = "rgba(8,3,22,0.18)";
       ctx.fillRect(sx + stepW - 2, sy, 2, stepH);
 
-      /* tread slab */
       ctx.fillStyle = top;
       ctx.fillRect(sx, sy - TREAD, stepW, TREAD);
-      /* tread highlight line */
       ctx.fillStyle = "rgba(255,255,255,0.4)";
       ctx.fillRect(sx, sy - TREAD, stepW, 1);
       ctx.fillStyle = "rgba(255,255,255,0.14)";
       ctx.fillRect(sx, sy - TREAD + 1, stepW, 1);
 
-      /* coin */
       if (s.coin && !s.coinTaken) {
         const cx = this.worldToScreenX(this.stepCenter(s));
         const cy = this.worldToScreenY(s.y - this.stepH * 0.62 + Math.round(Math.sin(this.time * 3 + s.coinPhase) * 2));
@@ -1176,29 +1144,24 @@ export class SkyStepsEngine {
     }
   }
 
-  /* Wide rooftop the run starts from — reads as "the ground". */
   private drawGround(sy: number, TREAD: number) {
     const { ctx, W, H } = this;
     const alt = this.altTint();
     const front = shadeHex(mixHex("#4f7fae", "#2c3f6e", alt), 1);
     const top = shadeHex(mixHex("#7fa8d8", "#4f6fa0", alt), 1);
 
-    /* dark silhouette */
     ctx.fillStyle = INK;
     ctx.fillRect(-4, sy - TREAD - 1, W + 8, TREAD + (H - sy) + 8);
 
-    /* front face down to the bottom of the screen */
     ctx.fillStyle = front;
     ctx.fillRect(0, sy, W, H - sy + 4);
 
-    /* brick dither on the face */
     ctx.fillStyle = "rgba(8,3,22,0.2)";
     for (let yy = sy + 6; yy < H; yy += 7) {
       const off = ((yy / 7) % 2 === 0 ? 0 : 5);
       for (let xx = off; xx < W; xx += 10) ctx.fillRect(xx, yy, 4, 2);
     }
 
-    /* rooftop slab */
     ctx.fillStyle = top;
     ctx.fillRect(0, sy - TREAD, W, TREAD);
     ctx.fillStyle = "rgba(255,255,255,0.45)";
@@ -1206,7 +1169,6 @@ export class SkyStepsEngine {
     ctx.fillStyle = "rgba(255,255,255,0.15)";
     ctx.fillRect(0, sy - TREAD + 1, W, 1);
 
-    /* a couple of little rooftop details */
     ctx.fillStyle = INK;
     ctx.fillRect(Math.round(W * 0.12) - 1, sy - TREAD - 9, 14, 9);
     ctx.fillStyle = shadeHex(top, 0.7);
@@ -1247,7 +1209,6 @@ export class SkyStepsEngine {
     const px = this.sprPx;
     const airborne = this.pstate === "jump" || this.pstate === "fall";
 
-    /* turn spin: squash horizontally, swap facing mid-spin */
     let scx = 1;
     let drawFace: Side = this.face;
     if (this.turnT > 0) {
@@ -1257,24 +1218,20 @@ export class SkyStepsEngine {
     }
     const flip = drawFace === -1;
 
-    /* landing squash / jump stretch — a continuous stretch→squash over the hop */
     let scy = 1;
     if (this.squash > 0 && !airborne) { scx *= 1 + this.squash * 0.18; scy = 1 - this.squash * 0.2; }
     else if (this.pstate === "jump") {
-      const c = Math.cos(Math.PI * clamp(this.jt, 0, 1)); // 1 → -1 across the hop
+      const c = Math.cos(Math.PI * clamp(this.jt, 0, 1));
       scx *= 1 - 0.09 * c;
       scy = 1 + 0.11 * c;
     }
 
-    /* idle bob (whole-pixel) */
     let bob = 0;
     if (this.pstate === "stand" && this.turnT <= 0) {
       bob = Math.floor(this.time * 2.5) % 2 === 0 ? 0 : -1;
     }
-    /* soft landing rebound */
     if (this.bounceT > 0 && !airborne) bob -= Math.round(Math.sin(this.bounceT * Math.PI) * 2);
 
-    /* shadow */
     if (this.pstate === "stand") {
       ctx.fillStyle = "rgba(8,3,20,0.35)";
       ctx.fillRect(x - 6 * (px / 3) - 1, y - 1, 12 * (px / 3) + 2, 2);
@@ -1291,7 +1248,6 @@ export class SkyStepsEngine {
     const map = this.pstate === "fall" ? SPR_FALL : this.pstate === "jump" ? SPR_JUMP : SPR_STAND;
     blit(ctx, map, pal, Math.round(-sprW / 2), -sprH, px, flip);
 
-    /* accessory (halo bobs, antenna blinks) */
     const acc = ACCESSORIES[skin.accessory];
     if (acc) {
       if (skin.accessory === "halo") {
@@ -1309,7 +1265,6 @@ export class SkyStepsEngine {
     }
     ctx.restore();
 
-    /* combo badge */
     if (this.mode === "play" && this.combo >= 4 && this.time - this.lastLand < 0.9) {
       const pop = this.comboPop > 0 ? 1 : 0;
       this.pixelText(`x${this.combo}`, x, y - sprH - 8 - pop * 2, 8, this.combo >= 10 ? "#ff5d7e" : "#ffd23f");
@@ -1387,12 +1342,10 @@ export class SkyStepsEngine {
   private drawHUD() {
     const { ctx, W } = this;
 
-    /* score — big, and it pops a size up on every landed step */
     const pop = this.stairPop > 0.45;
     this.pixelText(String(this.stairs), W / 2, pop ? 40 : 34, pop ? 32 : 24, "#fff3dc");
     this.pixelText("STAIRS", W / 2, 48, 8, "rgba(255,243,220,0.7)", false);
 
-    /* segmented energy bar */
     const segs = 20, segW = 5, gap = 1;
     const bw = segs * (segW + gap) - gap;
     const bx = Math.round(W / 2 - bw / 2), by = 54;
@@ -1413,7 +1366,6 @@ export class SkyStepsEngine {
       this.pixelText("KEEP CLIMBING!", W / 2, by + 20, 8, "#ff5d7e");
     }
 
-    /* coin chip (left) */
     ctx.fillStyle = INK;
     ctx.fillRect(4, 4, 70, 18);
     ctx.fillStyle = "#241242";
@@ -1421,14 +1373,12 @@ export class SkyStepsEngine {
     blit(ctx, COIN_SPR, COIN_PAL, 8, 9, 1);
     this.pixelText(String(this.walletShown()), 46, 17, 8, "#ffd23f", false);
     ctx.textAlign = "left";
-    /* run coins */
     if (this.runCoins > 0) {
       ctx.font = '8px "Press Start 2P", monospace';
       ctx.fillStyle = "rgba(255,210,63,0.85)";
       ctx.fillText(`+${this.runCoins}`, 6, 32);
     }
 
-    /* best chip (right, left of the DOM pause button) */
     ctx.fillStyle = INK;
     ctx.fillRect(W - 78, 4, 60, 18);
     ctx.fillStyle = "#241242";
@@ -1440,7 +1390,6 @@ export class SkyStepsEngine {
     ctx.fillStyle = "#3ff2c8";
     ctx.fillText(String(Math.max(this.best, this.stairs)), W - 74, 21);
 
-    /* tutorial for the first steps */
     if (this.mode === "play" && this.stairs < 10 && this.pstate !== "fall") {
       const blink = Math.floor(this.time * 4) % 2 === 0;
       if (blink) {
@@ -1451,14 +1400,14 @@ export class SkyStepsEngine {
           const wantDir = this.dirTo(this.idx + 1);
           blit(ctx, ARROW_SIDE, { U: "#3ff2c8" }, hx - 7 - wantDir * 12, hy - 6, 2, wantDir === 1);
           this.pixelText("STEP BEHIND!", hx, hy - 22, 8, "#3ff2c8");
-          this.pixelText("L-SHIFT", hx, hy - 11, 8, "#fff3dc");
+          this.pixelText("Q / ←", hx, hy - 11, 8, "#fff3dc");
         } else {
           const next = this.stepAt(this.idx + 1);
           const nx = this.worldToScreenX(this.stepCenter(next));
           const ny = this.worldToScreenY(next.y) - 26;
           blit(ctx, ARROW_UP, { U: "#ffd23f" }, nx - 7, ny - 8, 2);
           this.pixelText("CLIMB!", nx, ny - 25, 8, "#ffd23f");
-          this.pixelText("R-SHIFT", nx, ny - 14, 8, "#fff3dc");
+          this.pixelText("E / →", nx, ny - 14, 8, "#fff3dc");
         }
       }
     }
@@ -1468,7 +1417,6 @@ export class SkyStepsEngine {
   setWallet(v: number) { this.walletCache = v; }
   private walletShown() { return this.walletCache; }
 
-  /* chunky screen frame + danger / hit flashes */
   private drawFrame() {
     const { ctx, W, H } = this;
     ctx.fillStyle = "rgba(10,3,22,0.9)";
