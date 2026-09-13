@@ -18,7 +18,7 @@ import {
   loadGameState,
   isLoggedIn,
   hasTalo,
-  getIdentifier,
+  getIdentifier,// eror
   logout,
 } from "./game/talo";
 
