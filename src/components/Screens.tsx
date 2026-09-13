@@ -1,8 +1,15 @@
+import { useEffect, useState } from "react";
 import type { PointerEvent as RPointerEvent, ReactNode } from "react";
 import { SKINS, skinById, type SkinDef } from "../game/skins";
 import SkinAvatar from "./SkinAvatar";
+import {
+  fetchLeaderboard,
+  getAliasId,
+  hasTalo,
+  type LeaderboardEntry,
+} from "../game/talo";
 
-/* ---------- tiny pixel icons (crisp rects only) ---------- */
+/* ---------- tiny pixel icons ---------- */
 export const CoinSvg = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 8 8" shapeRendering="crispEdges" aria-hidden>
     <rect x="2" y="0" width="4" height="1" fill="#a3690c" />
@@ -58,6 +65,17 @@ const PauseIcon = () => (
     <rect x="9" y="2" width="4" height="12" />
   </svg>
 );
+const TrophyIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 12 12" shapeRendering="crispEdges" fill="currentColor" aria-hidden>
+    <rect x="2" y="1" width="8" height="1" />
+    <rect x="1" y="2" width="1" height="4" />
+    <rect x="10" y="2" width="1" height="4" />
+    <rect x="2" y="6" width="8" height="1" />
+    <rect x="3" y="7" width="6" height="1" />
+    <rect x="5" y="8" width="2" height="2" />
+    <rect x="3" y="10" width="6" height="1" />
+  </svg>
+);
 
 /* ---------- shared bits ---------- */
 export function KeyCap({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
@@ -92,19 +110,25 @@ export function StartScreen(props: {
   best: number;
   skin: SkinDef;
   muted: boolean;
+  loggedIn: boolean;
+  username: string | null;
   onStart: () => void;
   onShop: () => void;
+  onLeaderboard: () => void;
+  onLogin: () => void;
+  onLogout: () => void;
   onToggleMute: () => void;
 }) {
   return (
     <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-7 pointer-events-none">
-      {/* top row */}
       <div className="flex items-start justify-between gap-3 pointer-events-auto">
         <div className="flex items-center gap-2.5 chip px-3 py-2">
           <span className="animate-floaty"><SkinAvatar skin={props.skin} size={40} /></span>
           <div className="leading-tight">
             <div className="text-sm font-body tracking-[0.22em] text-[#b9a5e8]">CLIMBER</div>
-            <div className="font-display text-[10px] text-[#fff3dc] mt-0.5">{props.skin.name}</div>
+            <div className="font-display text-[10px] text-[#fff3dc] mt-0.5">
+              {props.loggedIn ? props.username : props.skin.name}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2.5">
@@ -117,7 +141,6 @@ export function StartScreen(props: {
         </div>
       </div>
 
-      {/* middle: title block, left-weighted */}
       <div className="pointer-events-none select-none -mt-4">
         <div className="flex items-end gap-3">
           <StairsGlyph className="w-12 h-12 sm:w-16 sm:h-16 animate-wobble shrink-0 mb-1" />
@@ -136,15 +159,96 @@ export function StartScreen(props: {
         </div>
       </div>
 
-      {/* bottom: actions */}
-      <div className="flex items-end justify-end gap-3 pointer-events-auto">
-        <button onClick={props.onShop} className="btn-arcade btn-plum px-5 h-14 text-[11px]">
-          <CoinSvg size={18} /> SKINS
-        </button>
-        <button onClick={props.onStart} className="btn-arcade btn-primary px-8 h-16 text-sm sm:text-base animate-pop">
-          CLIMB
-        </button>
+      <div className="flex items-end justify-between gap-3 pointer-events-auto">
+        <div className="flex items-center gap-2">
+          {props.loggedIn ? (
+            <button onClick={props.onLogout} className="btn-arcade btn-coral px-4 h-12 text-[10px]">
+              LOGOUT
+            </button>
+          ) : (
+            <button onClick={props.onLogin} className="btn-arcade btn-mint px-4 h-12 text-[10px]">
+              LOGIN
+            </button>
+          )}
+        </div>
+        <div className="flex items-end gap-3">
+          <button onClick={props.onLeaderboard} className="btn-arcade btn-plum px-4 h-14 text-[11px] flex items-center gap-2">
+            <TrophyIcon /> RANKS
+          </button>
+          <button onClick={props.onShop} className="btn-arcade btn-plum px-5 h-14 text-[11px]">
+            <CoinSvg size={18} /> SKINS
+          </button>
+          <button onClick={props.onStart} className="btn-arcade btn-primary px-8 h-16 text-sm sm:text-base animate-pop">
+            CLIMB
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+/* ---------- LOGIN ---------- */
+export function LoginScreen(props: {
+  onLogin: (username: string, password: string) => void;
+  onRegister: (username: string, password: string) => void;
+  onBack: () => void;
+  error: string | null;
+}) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [isRegister, setIsRegister] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username || !password) return;
+    if (isRegister) props.onRegister(username, password);
+    else props.onLogin(username, password);
+  };
+
+  return (
+    <div className="absolute inset-0 bg-[#0d041f]/80 flex items-center justify-center p-4 pointer-events-auto">
+      <form onSubmit={handleSubmit} className="panel-arcade w-full max-w-sm px-6 py-6 text-center animate-pop">
+        <div className="font-display text-lg text-[#ffd23f] pixel-shadow mb-4">
+          {isRegister ? "CREATE ACCOUNT" : "LOGIN"}
+        </div>
+        {props.error && (
+          <div className="mb-3 text-sm font-body text-[#ff5d7e]">{props.error}</div>
+        )}
+        <input
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          className="w-full mb-3 px-3 py-2 bg-[#1d0f3a] border-2 border-[#6d48b8] text-[#fff3dc] font-body rounded-sm focus:border-[#3ff2c8] outline-none"
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full mb-4 px-3 py-2 bg-[#1d0f3a] border-2 border-[#6d48b8] text-[#fff3dc] font-body rounded-sm focus:border-[#3ff2c8] outline-none"
+          required
+        />
+        <button type="submit" className="btn-arcade btn-primary w-full h-12 mb-3 text-xs">
+          {isRegister ? "CREATE ACCOUNT" : "LOGIN"}
+        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => { setIsRegister(!isRegister); }}
+            className="btn-arcade btn-plum flex-1 h-10 text-[9px]"
+          >
+            {isRegister ? "HAVE ACCOUNT?" : "NEW? REGISTER"}
+          </button>
+          <button type="button" onClick={props.onBack} className="btn-arcade btn-coral flex-1 h-10 text-[9px]">
+            BACK
+          </button>
+        </div>
+        <p className="mt-4 text-base font-body text-[#b9a5e8]">
+          Logging in syncs your coins, best score, and skins across devices.
+        </p>
+      </form>
     </div>
   );
 }
@@ -159,6 +263,7 @@ export function GameOverScreen(props: {
   skin: SkinDef;
   onRetry: () => void;
   onShop: () => void;
+  onLeaderboard: () => void;
   onMenu: () => void;
 }) {
   return (
@@ -203,13 +308,16 @@ export function GameOverScreen(props: {
             <span className="hidden sm:inline text-[9px] opacity-70 ml-1">(ANY SHIFT)</span>
           </button>
           <div className="flex gap-3">
+            <button onClick={props.onLeaderboard} className="btn-arcade btn-mint flex-1 h-12 text-[10px] flex items-center justify-center gap-1.5">
+              <TrophyIcon /> RANKS
+            </button>
             <button onClick={props.onShop} className="btn-arcade btn-mint flex-1 h-12 text-[10px]">
               <CoinSvg size={16} /> SKINS
             </button>
-            <button onClick={props.onMenu} className="btn-arcade btn-plum flex-1 h-12 text-[10px]">
-              MENU
-            </button>
           </div>
+          <button onClick={props.onMenu} className="btn-arcade btn-plum h-12 text-[10px]">
+            MENU
+          </button>
           <div className="text-base font-body text-[#b9a5e8]">
             Wallet: <span className="text-[#ffd23f] font-bold tabular-nums">{props.wallet}</span> coins — spend them wisely.
           </div>
@@ -341,10 +449,91 @@ export function ShopScreen(props: {
   );
 }
 
+/* ---------- LEADERBOARD ---------- */
+export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
+  const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetchLeaderboard(0)
+      .then((r) => { if (alive) setEntries(r.entries); })
+      .catch(() => { if (alive) setErr(true); });
+    return () => { alive = false; };
+  }, []);
+
+  const me = getAliasId();
+
+  return (
+    <div className="absolute inset-0 bg-[#0d041f]/70 flex items-center justify-center p-3 sm:p-6 pointer-events-auto">
+      <div className="panel-arcade w-full max-w-md max-h-[92vh] flex flex-col animate-pop overflow-hidden">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b-[3px] border-[#12081f]">
+          <div className="flex items-center gap-3">
+            <span className="text-[#ffd23f]"><TrophyIcon /></span>
+            <div>
+              <div className="font-display text-sm text-[#fff3dc] pixel-shadow-sm">SKY LEADERBOARD</div>
+              <div className="text-base font-body text-[#b9a5e8] mt-0.5">Highest stair count, worldwide.</div>
+            </div>
+          </div>
+          <button onClick={onClose} className="btn-arcade btn-coral h-11 px-4 text-[10px]">CLOSE</button>
+        </div>
+
+        <div className="overflow-y-auto p-3 sm:p-4">
+          {!hasTalo() && (
+            <p className="text-center text-base font-body text-[#ff5d7e] py-6 px-4">
+              Leaderboard isn't configured yet. Set <code className="text-[#ffd23f]">VITE_TALO_KEY</code> in your
+              environment to enable it.
+            </p>
+          )}
+          {hasTalo() && entries === null && !err && (
+            <p className="text-center text-base font-body text-[#b9a5e8] py-6 blink">Loading...</p>
+          )}
+          {err && (
+            <p className="text-center text-base font-body text-[#ff5d7e] py-6 px-4">
+              Couldn't load the leaderboard. Try again in a moment.
+            </p>
+          )}
+          {entries && entries.length === 0 && (
+            <p className="text-center text-base font-body text-[#b9a5e8] py-6">
+              No scores yet — be the first to climb.
+            </p>
+          )}
+          {entries && entries.length > 0 && (
+            <ul className="flex flex-col gap-1.5">
+              {entries.map((e) => {
+                const mine = !!me && e.playerAlias.id === me;
+                return (
+                  <li
+                    key={e.playerAlias.id + "-" + e.position}
+                    className={`flex items-center gap-3 px-3 py-2 border-[3px] ${
+                      mine
+                        ? "border-[#3ff2c8] bg-[#123a35]/60"
+                        : "border-[#6d48b8] bg-[#1d0f3a]/80"
+                    }`}
+                  >
+                    <span className="font-display text-[10px] text-[#ffd23f] w-8 tabular-nums shrink-0">
+                      #{e.position}
+                    </span>
+                    <span className="flex-1 font-body text-base text-[#fff3dc] truncate">
+                      {e.playerAlias.identifier}
+                    </span>
+                    <span className="font-display text-[10px] text-[#3ff2c8] tabular-nums shrink-0">
+                      {e.score}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- touch controls during play ---------- */
 const TurnClimbGlyph = () => (
   <svg width="30" height="30" viewBox="0 0 12 12" shapeRendering="crispEdges" fill="currentColor" aria-hidden>
-    {/* U-turn arrow: up, across, and back down-left */}
     <rect x="7" y="0" width="3" height="2" />
     <rect x="6" y="1" width="1" height="1" />
     <rect x="10" y="1" width="1" height="1" />
@@ -369,9 +558,7 @@ const ClimbGlyph = () => (
 function buzz() {
   try {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(9);
-  } catch {
-    /* haptics are flavor — never block a press */
-  }
+  } catch { /* ignore */ }
 }
 
 export function TouchControls({ onBack, onFwd }: { onBack: () => void; onFwd: () => void }) {
