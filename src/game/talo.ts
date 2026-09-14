@@ -65,12 +65,23 @@ function playerHeaders(): HeadersInit {
 
 /* ---------- auth ---------- */
 
-function normalizeAuthResponse(data: any): SessionResponse | null {
-  const sessionToken = data?.sessionToken ?? data?.session?.token;
-  const playerId = data?.player?.id ?? data?.playerId;
-  const aliasId = data?.alias?.id ?? data?.playerAlias?.id ?? data?.aliasId;
-  if (!sessionToken || !aliasId) return null;
-  return { sessionToken, player: { id: playerId ?? "" }, alias: { id: aliasId } };
+function normalizeAuthResponse(data: any, identifier: string): SessionResponse | null {
+  const sessionToken: string | undefined =
+    data?.sessionToken ?? data?.session?.token;
+  const aliasId: string | number | undefined =
+    data?.alias?.id ?? data?.playerAlias?.id ?? data?.aliasId;
+  const playerId: string | number | undefined =
+    data?.player?.id
+    ?? data?.playerId
+    ?? data?.alias?.player?.id        // ← THIS is the one Talo actually uses
+    ?? data?.alias?.playerId;
+
+  if (!sessionToken || aliasId === undefined) return null;
+  return {
+    sessionToken,
+    player: { id: playerId ?? "" },
+    alias: { id: String(aliasId) },
+  };
 }
 
 export async function register(
@@ -114,11 +125,15 @@ export async function login(
     const raw = await res.text();
     let data: any = null;
     try { data = raw ? JSON.parse(raw) : null; } catch { /* not JSON */ }
+
     if (!res.ok) {
-      if (data?.errorCode === "INVALID_CREDENTIALS") return { ok: false, error: "Invalid username or password" };
+      if (data?.errorCode === "INVALID_CREDENTIALS") {
+        return { ok: false, error: "Invalid username or password" };
+      }
       return { ok: false, error: data?.message || `Login failed (${res.status})` };
     }
-    const session = normalizeAuthResponse(data);
+
+    const session = normalizeAuthResponse(data, username);
     if (!session) {
       console.error("[talo] unexpected login response:", data);
       return { ok: false, error: "Login succeeded but no session returned." };
@@ -230,16 +245,26 @@ export interface LeaderboardEntry {
 }
 
 export async function submitScore(score: number): Promise<void> {
-  if (!hasTalo() || score <= 0) return;
+  if (!hasTalo() || score <= 0) {
+    console.log("[talo] submitScore skipped", { hasTalo: hasTalo(), score });
+    return;
+  }
   const alias = getAliasId();
-  if (!alias) return;
+  if (!alias) {
+    console.log("[talo] submitScore: no alias");
+    return;
+  }
   try {
-    await fetch(`${TALO_API}/v1/leaderboards/${LB}/entries`, {
+    const res = await fetch(`${TALO_API}/v1/leaderboards/${LB}/entries`, {
       method: "POST",
       headers: playerHeaders(),
       body: JSON.stringify({ score }),
     });
-  } catch { /* ignore */ }
+    const body = await res.text();
+    console.log("[talo] submit", res.status, body);
+  } catch (err) {
+    console.error("[talo] submit error", err);
+  }
 }
 
 /**
