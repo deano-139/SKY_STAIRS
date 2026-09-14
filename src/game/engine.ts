@@ -16,6 +16,7 @@ import {
 /*    Q / ← / A / L-SHIFT  = turn around AND climb               */
 /*    E / → / D / R-SHIFT  = climb without turning               */
 /*    ESC / P              = pause                               */
+/*    ENTER                = start / restart after a fall        */
 /* ============================================================= */
 
 export interface RunResult {
@@ -30,7 +31,6 @@ export interface EngineCallbacks {
   onGameOver: (r: RunResult) => void;
   onCoin: () => void;
   onPauseChange: (paused: boolean) => void;
-  /** A milestone climber (earned by stair count) was unlocked for the first time. */
   onMilestoneUnlocked?: (id: string) => void;
 }
 
@@ -38,8 +38,8 @@ type Side = -1 | 1;
 
 interface Step {
   idx: number;
-  x: number; // world x of the step's LEFT edge
-  y: number; // world y of the step top (smaller = higher)
+  x: number;
+  y: number;
   coin: boolean;
   coinTaken: boolean;
   coinPhase: number;
@@ -63,8 +63,8 @@ interface Cloud { x: number; y: number; s: number; }
 
 const JUMP_T = 0.135;
 const TURN_T = 0.11;
-const SAVE_ALT = 700; // stairs at which sky/stairs fully shift palette
-const MAX_RUN = 7;    // max consecutive steps in the same direction
+const SAVE_ALT = 700;
+const MAX_RUN = 7;
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -88,7 +88,6 @@ function mixHex(a: string, b: string, t: number): string {
   return `rgb(${Math.round(lerp(ca[0], cb[0], t))},${Math.round(lerp(ca[1], cb[1], t))},${Math.round(lerp(ca[2], cb[2], t))})`;
 }
 
-/* sky stages: vibrant sunrise over the city -> crisp morning -> high blue -> edge of space */
 const SKIES = [
   { top: "#4fb3f2", mid: "#9fdcf9", low: "#ffedb8" },
   { top: "#3f9ef0", mid: "#8fd2fa", low: "#d9f2ff" },
@@ -112,7 +111,6 @@ export class SkyStepsEngine {
   private lastT = 0;
   private time = 0;
 
-  /* internal (chunky) resolution + upscale factor */
   private SCALE = 3;
   private W = 320;
   private H = 240;
@@ -122,20 +120,12 @@ export class SkyStepsEngine {
   best = 0;
   skin: SkinDef;
 
-  /* when false, keyboard + pointer input is ignored entirely.
-     React toggles this on non-playing screens (login/shop/etc) so pressing
-     Shift in the login form doesn't start a run. */
-  private inputEnabled = true;
-
-  /* milestone climbers already owned (seeded from localStorage by App) */
   private milestoneOwned = new Set<string>();
 
-  /* staircase geometry (recomputed on resize) */
   private stepW = 60;
   private stepH = 32;
   private sprPx = 3;
 
-  /* run state */
   private steps: Step[] = [];
   private baseIdx = 0;
   private upRunDir: Side = 1;
@@ -152,7 +142,6 @@ export class SkyStepsEngine {
   private deathT = 0;
   private menuTimer = 0;
 
-  /* player */
   private px = 0; private py = 0;
   private pstate: "stand" | "jump" | "fall" = "stand";
   private jt = 0;
@@ -168,7 +157,6 @@ export class SkyStepsEngine {
   private blinkT = 2;
   private pending: { type: "back" | "fwd"; at: number }[] = [];
 
-  /* fx */
   private cam = 0;
   private camX = 0;
   private shake = 0;
@@ -288,11 +276,7 @@ export class SkyStepsEngine {
 
   setSkin(s: SkinDef) { this.skin = s; }
   setBest(b: number) { this.best = b; }
-  /** Seed which milestone climbers are already owned so we never re-unlock them. */
   setOwnedMilestones(ids: string[]) { this.milestoneOwned = new Set(ids); }
-  /** Gate keyboard + pointer input. Used by React to silence the engine
-      when non-game UI (login, shop, leaderboard) is on screen. */
-  setInputEnabled(v: boolean) { this.inputEnabled = v; }
   setMuted(m: boolean) {
     this.sfx.muted = m;
     this.bgm.setMuted(m);
@@ -405,20 +389,21 @@ export class SkyStepsEngine {
     this.bgm.start();
   }
 
-  private keyDown(e: KeyboardEvent) {
-    /* Hard gate: nothing responds while non-game UI is up. */
-    if (!this.inputEnabled) return;
-
-    /* Ignore keys typed into form fields (login screen, etc). */
+  /** True when the event target is an editable field — the engine should
+      ignore keys so the player can actually type their username/password. */
+  private isTypingInField(e: KeyboardEvent): boolean {
     const target = e.target as HTMLElement | null;
-    if (
-      target &&
-      (target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable)
-    ) {
-      return;
-    }
+    if (!target) return false;
+    if (target.isContentEditable) return true;
+    const tag = target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+    return false;
+  }
+
+  private keyDown(e: KeyboardEvent) {
+    /* If the player is typing into a form (login screen), let the browser
+       handle every key. This is the ONLY gate — no React-driven flag. */
+    if (this.isTypingInField(e)) return;
 
     this.unlockAudio();
     const c = e.code;
@@ -426,6 +411,19 @@ export class SkyStepsEngine {
     /* Pause */
     if (c === "Escape" || c === "KeyP") {
       if (this.mode === "play") { e.preventDefault(); this.togglePause(); }
+      return;
+    }
+
+    /* Continue: start from menu, restart after death, resume from pause. */
+    if (c === "Enter" || c === "NumpadEnter") {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (this.mode === "menu") { this.start(); return; }
+      if (this.mode === "dying") {
+        if (this.reported && this.deathT > 1.1) this.start();
+        return;
+      }
+      if (this.paused) { this.setPaused(false); return; }
       return;
     }
 
@@ -455,7 +453,6 @@ export class SkyStepsEngine {
   }
 
   private pointer(e: PointerEvent) {
-    if (!this.inputEnabled) return;
     this.unlockAudio();
     if (this.mode !== "play") return;
     const r = this.canvas.getBoundingClientRect();

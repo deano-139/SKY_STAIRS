@@ -88,11 +88,6 @@ export default function App() {
 
   /* Gate the engine's keyboard/pointer input based on UI state.
      This is what stops Shift on the login screen from starting a run. */
-  useEffect(() => {
-    const enabled =
-      screen === "playing" && !paused && !shopOpen && !leaderboardOpen;
-    engineRef.current?.setInputEnabled(enabled);
-  }, [screen, paused, shopOpen, leaderboardOpen]);
 
   /* Talo: create anonymous player for leaderboard if not logged in */
   useEffect(() => {
