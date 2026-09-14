@@ -28,6 +28,7 @@ import {
 } from "./game/talo";
 
 const SAVE_KEY = "skysteps-save-v1";
+const SAVE_DEBOUNCE_MS = 1200;
 
 interface SaveData {
   wallet: number;
@@ -60,6 +61,7 @@ type LoginReturn = "menu" | "gameover";
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<SkyStepsEngine | null>(null);
+  const saveTimerRef = useRef<number | null>(null);
 
   const initial = useRef(loadSave()).current;
   const isTouch = useRef(
@@ -82,22 +84,37 @@ export default function App() {
   const [overview, setOverview] = useState<AccountOverview | null>(null);
   const loginReturnRef = useRef<LoginReturn>("menu");
 
-  /* keep engine's best/wallet copies fresh */
   useEffect(() => { engineRef.current?.setBest(best); }, [best]);
   useEffect(() => { engineRef.current?.setWallet(wallet); }, [wallet]);
 
-  /* Gate the engine's keyboard/pointer input based on UI state.
-     This is what stops Shift on the login screen from starting a run. */
-
-  /* Talo: create anonymous player for leaderboard if not logged in */
+  /* Anonymous Talo player for the leaderboard if not logged in */
   useEffect(() => {
     if (!hasTalo()) return;
-    if (!isLoggedIn()) {
-      void initAnonymousPlayer();
-    }
+    if (!isLoggedIn()) void initAnonymousPlayer();
   }, []);
 
-  /* Refresh account overview whenever we're logged in and back on menu/gameover */
+  /* Load cloud save on boot if already logged in (session in localStorage) */
+  useEffect(() => {
+    if (!hasTalo() || !isLoggedIn()) return;
+    void (async () => {
+      const saved = await loadGameState();
+      if (saved) {
+        setBest(saved.best);
+        setWallet(saved.wallet);
+        setOwned(saved.ownedSkins);
+        setSelected(saved.selectedSkin);
+        setMuted(saved.muted);
+        engineRef.current?.setBest(saved.best);
+        engineRef.current?.setWallet(saved.wallet);
+        engineRef.current?.setSkin(skinById(saved.selectedSkin));
+      }
+      const o = await getAccountOverview();
+      setOverview(o);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Refresh account overview when back on menu/gameover */
   useEffect(() => {
     if (!loggedIn) { setOverview(null); return; }
     if (screen === "menu" || screen === "gameover") {
@@ -105,7 +122,7 @@ export default function App() {
     }
   }, [loggedIn, screen]);
 
-  /* boot engine once */
+  /* Boot engine once */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -149,14 +166,17 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* persist locally + sync to Talo when logged in */
+  /* Persist locally always; mirror to Talo (debounced) when logged in */
   useEffect(() => {
     try {
       const d: SaveData = { wallet, best, owned, selected, muted };
       localStorage.setItem(SAVE_KEY, JSON.stringify(d));
     } catch { /* ignore */ }
 
-    if (isLoggedIn()) {
+    if (!isLoggedIn()) return;
+
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
       void saveGameState({
         best,
         wallet,
@@ -164,7 +184,11 @@ export default function App() {
         selectedSkin: selected,
         muted,
       });
-    }
+    }, SAVE_DEBOUNCE_MS);
+
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
   }, [wallet, best, owned, selected, muted]);
 
   const selectedSkin = skinById(selected);
@@ -255,6 +279,7 @@ export default function App() {
 
       if (result.ok) {
         setLoggedIn(true);
+        /* Cloud is source of truth on login: pull state, apply everywhere */
         const saved = await loadGameState();
         if (saved) {
           setBest(saved.best);
@@ -277,11 +302,19 @@ export default function App() {
   );
 
   const handleLogout = useCallback(() => {
+    /* Flush pending save so we don't lose the last change */
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    if (isLoggedIn()) {
+      void saveGameState({ best, wallet, ownedSkins: owned, selectedSkin: selected, muted });
+    }
     logout();
     setLoggedIn(false);
     setOverview(null);
     setScreen("menu");
-  }, []);
+  }, [best, wallet, owned, selected, muted]);
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none" style={{ height: "100dvh" }}>

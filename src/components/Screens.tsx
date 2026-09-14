@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PointerEvent as RPointerEvent, ReactNode } from "react";
 import { SKINS, skinById, type SkinDef } from "../game/skins";
 import SkinAvatar from "./SkinAvatar";
 import {
   fetchLeaderboard,
   getAliasId,
-  getAccountOverview,
   hasTalo,
   type AccountOverview,
   type LeaderboardEntry,
@@ -99,7 +98,6 @@ function SoundToggle({ muted, onToggle }: { muted: boolean; onToggle: () => void
       onClick={onToggle}
       className="btn-arcade btn-plum h-11 w-11"
       aria-label={muted ? "Unmute" : "Mute"}
-      title={muted ? "Unmute (sound off)" : "Mute"}
     >
       {muted ? <SoundOffIcon /> : <SoundOnIcon />}
     </button>
@@ -108,13 +106,7 @@ function SoundToggle({ muted, onToggle }: { muted: boolean; onToggle: () => void
 
 /* ---------- account overview card ---------- */
 
-export function AccountCard({
-  overview,
-  onLogout,
-}: {
-  overview: AccountOverview;
-  onLogout?: () => void;
-}) {
+export function AccountCard({ overview, onLogout }: { overview: AccountOverview; onLogout?: () => void }) {
   return (
     <div className="panel-arcade w-full px-4 py-3 text-left">
       <div className="flex items-center justify-between gap-3 mb-2">
@@ -128,18 +120,12 @@ export function AccountCard({
           </div>
         </div>
         {onLogout && (
-          <button onClick={onLogout} className="btn-arcade btn-coral px-3 h-9 text-[9px]">
-            LOGOUT
-          </button>
+          <button onClick={onLogout} className="btn-arcade btn-coral px-3 h-9 text-[9px]">LOGOUT</button>
         )}
       </div>
       <div className="grid grid-cols-2 gap-2">
         <Stat label="BEST" value={overview.bestScore} accent="#3ff2c8" />
-        <Stat
-          label="RANK"
-          value={overview.position ? `#${overview.position}` : "—"}
-          accent="#ffd23f"
-        />
+        <Stat label="RANK" value={overview.position ? `#${overview.position}` : "—"} accent="#ffd23f" />
         <Stat label="RUNS" value={overview.totalRuns} accent="#8fa0ff" />
         <Stat label="COINS" value={overview.totalCoins} accent="#ffd23f" />
       </div>
@@ -147,21 +133,11 @@ export function AccountCard({
   );
 }
 
-function Stat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number | string;
-  accent: string;
-}) {
+function Stat({ label, value, accent }: { label: string; value: number | string; accent: string }) {
   return (
     <div className="chip px-3 py-2 leading-tight">
       <div className="text-[9px] font-body tracking-[0.22em] text-[#b9a5e8]">{label}</div>
-      <div className="font-body font-bold text-lg tabular-nums mt-0.5" style={{ color: accent }}>
-        {value}
-      </div>
+      <div className="font-body font-bold text-lg tabular-nums mt-0.5" style={{ color: accent }}>{value}</div>
     </div>
   );
 }
@@ -219,7 +195,7 @@ export function StartScreen(props: {
               PRESS ANY SHIFT TO START
             </div>
             <div className="mt-2 text-base font-body text-[#b9a5e8]">
-              Q / ← turn+climb · E / → climb
+              Q / ← turn+climb · E / → climb · ENTER start/restart
             </div>
           </div>
         </div>
@@ -234,9 +210,7 @@ export function StartScreen(props: {
       <div className="flex items-end justify-between gap-3 pointer-events-auto">
         <div className="flex items-center gap-2">
           {props.loggedIn ? (
-            <button onClick={props.onLogout} className="btn-arcade btn-coral px-4 h-12 text-[10px]">
-              LOGOUT
-            </button>
+            <button onClick={props.onLogout} className="btn-arcade btn-coral px-4 h-12 text-[10px]">LOGOUT</button>
           ) : (
             <button onClick={props.onLogin} className="btn-arcade btn-mint px-4 h-12 text-[10px]">
               LOGIN / SIGN UP
@@ -283,9 +257,7 @@ export function LoginScreen(props: {
         <div className="font-display text-lg text-[#ffd23f] pixel-shadow mb-4">
           {isRegister ? "CREATE ACCOUNT" : "LOGIN"}
         </div>
-        {props.error && (
-          <div className="mb-3 text-sm font-body text-[#ff5d7e]">{props.error}</div>
-        )}
+        {props.error && <div className="mb-3 text-sm font-body text-[#ff5d7e]">{props.error}</div>}
         <input
           type="text"
           placeholder="Username"
@@ -308,11 +280,7 @@ export function LoginScreen(props: {
           {isRegister ? "CREATE ACCOUNT" : "LOGIN"}
         </button>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => { setIsRegister(!isRegister); }}
-            className="btn-arcade btn-plum flex-1 h-10 text-[9px]"
-          >
+          <button type="button" onClick={() => setIsRegister(!isRegister)} className="btn-arcade btn-plum flex-1 h-10 text-[9px]">
             {isRegister ? "HAVE ACCOUNT?" : "NEW? REGISTER"}
           </button>
           <button type="button" onClick={props.onBack} className="btn-arcade btn-coral flex-1 h-10 text-[9px]">
@@ -320,7 +288,7 @@ export function LoginScreen(props: {
           </button>
         </div>
         <p className="mt-4 text-base font-body text-[#b9a5e8]">
-          Logging in syncs your coins, best score, and skins across devices.
+          Logging in syncs coins, best score, and skins across every device.
         </p>
       </form>
     </div>
@@ -346,9 +314,7 @@ export function GameOverScreen(props: {
   return (
     <div className="absolute inset-0 bg-[#0d041f]/55 flex items-center justify-center p-4 pointer-events-auto overflow-y-auto">
       <div className="panel-arcade w-full max-w-md px-6 py-6 sm:px-8 sm:py-7 animate-pop text-center relative my-auto">
-        <div className="font-display text-xl sm:text-2xl text-[#ff5d7e] pixel-shadow">
-          YOU TUMBLED
-        </div>
+        <div className="font-display text-xl sm:text-2xl text-[#ff5d7e] pixel-shadow">YOU TUMBLED</div>
         {props.newBest && (
           <div className="mt-3 inline-block font-display text-[10px] bg-[#3ff2c8] text-[#04302a] px-3 py-1.5 border-2 border-[#12081f] shadow-[0_3px_0_#12081f] -rotate-2">
             NEW BEST!
@@ -380,15 +346,12 @@ export function GameOverScreen(props: {
         </div>
 
         {props.loggedIn && props.overview && (
-          <div className="mt-5">
-            <AccountCard overview={props.overview} />
-          </div>
+          <div className="mt-5"><AccountCard overview={props.overview} /></div>
         )}
 
         <div className="mt-5 flex flex-col gap-3">
           <button onClick={props.onRetry} className="btn-arcade btn-primary h-14 text-[11px] sm:text-xs">
-            CLIMB AGAIN
-            <span className="hidden sm:inline text-[9px] opacity-70 ml-1">(ANY SHIFT)</span>
+            CLIMB AGAIN <span className="hidden sm:inline text-[9px] opacity-70 ml-1">(ENTER)</span>
           </button>
           <div className="flex gap-3">
             <button onClick={props.onLeaderboard} className="btn-arcade btn-mint flex-1 h-12 text-[10px] flex items-center justify-center gap-1.5">
@@ -398,18 +361,14 @@ export function GameOverScreen(props: {
               <CoinSvg size={16} /> SKINS
             </button>
           </div>
-          <button onClick={props.onMenu} className="btn-arcade btn-plum h-12 text-[10px]">
-            MENU
-          </button>
+          <button onClick={props.onMenu} className="btn-arcade btn-plum h-12 text-[10px]">MENU</button>
           <div className="text-base font-body text-[#b9a5e8]">
-            Wallet: <span className="text-[#ffd23f] font-bold tabular-nums">{props.wallet}</span> coins — spend them wisely.
+            Wallet: <span className="text-[#ffd23f] font-bold tabular-nums">{props.wallet}</span> coins
           </div>
         </div>
       </div>
 
-      {!props.loggedIn && props.newBest && (
-        <PostRunLoginPrompt onLogin={props.onLogin} />
-      )}
+      {!props.loggedIn && props.newBest && <PostRunLoginPrompt onLogin={props.onLogin} />}
     </div>
   );
 }
@@ -417,14 +376,11 @@ export function GameOverScreen(props: {
 /* ---------- POST-RUN LOGIN PROMPT ---------- */
 export function PostRunLoginPrompt({ onLogin }: { onLogin: () => void }) {
   const [visible, setVisible] = useState(false);
-
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 700);
     return () => clearTimeout(t);
   }, []);
-
   if (!visible) return null;
-
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[min(24rem,calc(100%-2rem))] animate-pop pointer-events-auto">
       <div className="panel-arcade px-4 py-3 flex items-center gap-3">
@@ -432,12 +388,10 @@ export function PostRunLoginPrompt({ onLogin }: { onLogin: () => void }) {
         <div className="flex-1 text-left leading-tight">
           <div className="font-display text-[10px] text-[#ffd23f]">NEW BEST!</div>
           <div className="text-base font-body text-[#b9a5e8] mt-0.5">
-            Sign in to save your score forever &amp; sync coins.
+            Sign in to save your score forever &amp; sync across devices.
           </div>
         </div>
-        <button onClick={onLogin} className="btn-arcade btn-primary px-3 h-10 text-[10px] shrink-0">
-          SIGN IN
-        </button>
+        <button onClick={onLogin} className="btn-arcade btn-primary px-3 h-10 text-[10px] shrink-0">SIGN IN</button>
       </div>
     </div>
   );
@@ -487,13 +441,11 @@ export function ShopScreen(props: {
         <div className="flex items-center justify-between gap-3 px-5 sm:px-7 py-4 border-b-[3px] border-[#12081f]">
           <div>
             <div className="font-display text-sm sm:text-base text-[#fff3dc] pixel-shadow-sm">SKIN SHOP</div>
-            <div className="text-base font-body text-[#b9a5e8] mt-1">Coins are earned mid-climb. Grab the shiny ones.</div>
+            <div className="text-base font-body text-[#b9a5e8] mt-1">Coins are earned mid-climb.</div>
           </div>
           <div className="flex items-center gap-3">
             <WalletChip wallet={props.wallet} />
-            <button onClick={props.onClose} className="btn-arcade btn-coral h-11 px-4 text-[10px]" aria-label="Close shop">
-              DONE
-            </button>
+            <button onClick={props.onClose} className="btn-arcade btn-coral h-11 px-4 text-[10px]">DONE</button>
           </div>
         </div>
 
@@ -507,9 +459,8 @@ export function ShopScreen(props: {
                 <div
                   key={s.id}
                   className={`skin-card relative rounded-sm border-[3px] p-3 flex flex-col items-center text-center ${
-                    active
-                      ? "border-[#3ff2c8] bg-[#123a35]/60 shadow-[0_5px_0_rgba(6,40,36,0.9)]"
-                      : "border-[#6d48b8] bg-[#1d0f3a]/80 shadow-[0_5px_0_rgba(10,4,24,0.9)]"
+                    active ? "border-[#3ff2c8] bg-[#123a35]/60 shadow-[0_5px_0_rgba(6,40,36,0.9)]"
+                           : "border-[#6d48b8] bg-[#1d0f3a]/80 shadow-[0_5px_0_rgba(10,4,24,0.9)]"
                   }`}
                 >
                   {active && (
@@ -531,13 +482,9 @@ export function ShopScreen(props: {
                   <div className="text-base font-body leading-snug text-[#b9a5e8] mt-1 min-h-[2.4em]">{s.blurb}</div>
                   <div className="mt-2 w-full">
                     {active ? (
-                      <div className="h-10 flex items-center justify-center border-2 border-[#3ff2c8]/50 text-[#3ff2c8] font-display text-[8px] tracking-widest">
-                        CLIMBING
-                      </div>
+                      <div className="h-10 flex items-center justify-center border-2 border-[#3ff2c8]/50 text-[#3ff2c8] font-display text-[8px] tracking-widest">CLIMBING</div>
                     ) : has ? (
-                      <button onClick={() => props.onEquip(s.id)} className="btn-arcade btn-mint w-full h-10 text-[9px]">
-                        EQUIP
-                      </button>
+                      <button onClick={() => props.onEquip(s.id)} className="btn-arcade btn-mint w-full h-10 text-[9px]">EQUIP</button>
                     ) : s.unlockAt ? (
                       <div className="h-10 flex flex-col items-center justify-center border-2 border-[#6d48b8]/50 text-[#b9a5e8] font-display text-[8px] tracking-wider leading-relaxed">
                         <StairsGlyph className="w-3.5 h-3.5 opacity-70" />
@@ -566,76 +513,119 @@ export function ShopScreen(props: {
 }
 
 /* ---------- LEADERBOARD ---------- */
+
+function formatWhen(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const diff = Date.now() - d.getTime();
+    if (diff < 0) return "just now";
+    if (diff < 60_000) return "just now";
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+    if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)}d ago`;
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  } catch { return ""; }
+}
+
 export function LeaderboardScreen({ onClose }: { onClose: () => void }) {
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
+  const [total, setTotal] = useState(0);
   const [err, setErr] = useState(false);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     let alive = true;
-    fetchLeaderboard(0)
-      .then((r) => { if (alive) setEntries(r.entries); })
+    fetchLeaderboard(100)
+      .then((r) => { if (alive) { setEntries(r.entries); setTotal(r.count); } })
       .catch(() => { if (alive) setErr(true); });
     return () => { alive = false; };
   }, []);
 
   const me = getAliasId();
 
+  const filtered = useMemo(() => {
+    if (!entries) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter((e) => e.playerAlias.identifier.toLowerCase().includes(q));
+  }, [entries, search]);
+
+  const myEntry = entries?.find((e) => e.playerAlias.id === me);
+
   return (
     <div className="absolute inset-0 bg-[#0d041f]/70 flex items-center justify-center p-3 sm:p-6 pointer-events-auto">
-      <div className="panel-arcade w-full max-w-md max-h-[92vh] flex flex-col animate-pop overflow-hidden">
+      <div className="panel-arcade w-full max-w-lg max-h-[92vh] flex flex-col animate-pop overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-b-[3px] border-[#12081f]">
           <div className="flex items-center gap-3">
             <span className="text-[#ffd23f]"><TrophyIcon /></span>
             <div>
               <div className="font-display text-sm text-[#fff3dc] pixel-shadow-sm">SKY LEADERBOARD</div>
-              <div className="text-base font-body text-[#b9a5e8] mt-0.5">Highest stair count, worldwide.</div>
+              <div className="text-base font-body text-[#b9a5e8] mt-0.5">
+                Top 100 · {total} {total === 1 ? "climber" : "climbers"}
+              </div>
             </div>
           </div>
           <button onClick={onClose} className="btn-arcade btn-coral h-11 px-4 text-[10px]">CLOSE</button>
         </div>
 
-        <div className="overflow-y-auto p-3 sm:p-4">
+        {myEntry && (
+          <div className="px-4 pt-3">
+            <div className="flex items-center gap-3 px-3 py-2 border-[3px] border-[#3ff2c8] bg-[#123a35]/60">
+              <span className="font-display text-[10px] text-[#ffd23f] w-8 tabular-nums">#{myEntry.position}</span>
+              <div className="flex-1 min-w-0">
+                <div className="font-body text-base text-[#fff3dc] truncate">{myEntry.playerAlias.identifier}</div>
+                <div className="text-[10px] font-body text-[#b9a5e8] mt-0.5">{formatWhen(myEntry.updatedAt || myEntry.createdAt)}</div>
+              </div>
+              <span className="font-display text-[10px] text-[#3ff2c8] tabular-nums">{myEntry.score}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="px-4 pt-3 pb-2">
+          <input
+            type="text"
+            placeholder="Search climbers…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full px-3 py-2 bg-[#1d0f3a] border-2 border-[#6d48b8] text-[#fff3dc] font-body text-sm rounded-sm focus:border-[#3ff2c8] outline-none"
+          />
+        </div>
+
+        <div className="overflow-y-auto p-3 sm:p-4 flex-1">
           {!hasTalo() && (
             <p className="text-center text-base font-body text-[#ff5d7e] py-6 px-4">
-              Leaderboard isn't configured yet. Set <code className="text-[#ffd23f]">VITE_TALO_KEY</code> in your
-              environment to enable it.
+              Leaderboard isn't configured yet. Set <code className="text-[#ffd23f]">VITE_TALO_KEY</code>.
             </p>
           )}
           {hasTalo() && entries === null && !err && (
-            <p className="text-center text-base font-body text-[#b9a5e8] py-6 blink">Loading...</p>
+            <p className="text-center text-base font-body text-[#b9a5e8] py-6 blink">Loading…</p>
           )}
           {err && (
-            <p className="text-center text-base font-body text-[#ff5d7e] py-6 px-4">
-              Couldn't load the leaderboard. Try again in a moment.
-            </p>
+            <p className="text-center text-base font-body text-[#ff5d7e] py-6 px-4">Couldn't load the leaderboard.</p>
           )}
-          {entries && entries.length === 0 && (
+          {entries && filtered.length === 0 && (
             <p className="text-center text-base font-body text-[#b9a5e8] py-6">
-              No scores yet — be the first to climb.
+              {search ? "No climbers match that search." : "No scores yet — be the first to climb."}
             </p>
           )}
-          {entries && entries.length > 0 && (
+          {filtered.length > 0 && (
             <ul className="flex flex-col gap-1.5">
-              {entries.map((e) => {
+              {filtered.map((e) => {
                 const mine = !!me && e.playerAlias.id === me;
                 return (
                   <li
                     key={e.playerAlias.id + "-" + e.position}
                     className={`flex items-center gap-3 px-3 py-2 border-[3px] ${
-                      mine
-                        ? "border-[#3ff2c8] bg-[#123a35]/60"
-                        : "border-[#6d48b8] bg-[#1d0f3a]/80"
+                      mine ? "border-[#3ff2c8] bg-[#123a35]/60" : "border-[#6d48b8] bg-[#1d0f3a]/80"
                     }`}
                   >
-                    <span className="font-display text-[10px] text-[#ffd23f] w-8 tabular-nums shrink-0">
-                      #{e.position}
-                    </span>
-                    <span className="flex-1 font-body text-base text-[#fff3dc] truncate">
-                      {e.playerAlias.identifier}
-                    </span>
-                    <span className="font-display text-[10px] text-[#3ff2c8] tabular-nums shrink-0">
-                      {e.score}
-                    </span>
+                    <span className="font-display text-[10px] text-[#ffd23f] w-8 tabular-nums shrink-0">#{e.position}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-body text-base text-[#fff3dc] truncate">{e.playerAlias.identifier}</div>
+                      <div className="text-[10px] font-body text-[#b9a5e8] mt-0.5">{formatWhen(e.updatedAt || e.createdAt)}</div>
+                    </div>
+                    <span className="font-display text-[10px] text-[#3ff2c8] tabular-nums shrink-0">{e.score}</span>
                   </li>
                 );
               })}
@@ -672,9 +662,7 @@ const ClimbGlyph = () => (
 );
 
 function buzz() {
-  try {
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(9);
-  } catch { /* ignore */ }
+  try { if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(9); } catch { /* ignore */ }
 }
 
 export function TouchControls({ onBack, onFwd }: { onBack: () => void; onFwd: () => void }) {
@@ -716,8 +704,7 @@ export function PauseButton({ onClick }: { onClick: () => void }) {
     <button
       onClick={onClick}
       className="absolute top-3 right-3 btn-arcade btn-plum h-10 w-10 text-[#efe6ff] pointer-events-auto"
-      aria-label="Pause (Esc)"
-      title="Pause (Esc)"
+      aria-label="Pause"
     >
       <PauseIcon />
     </button>

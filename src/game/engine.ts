@@ -111,6 +111,12 @@ export class SkyStepsEngine {
   private lastT = 0;
   private time = 0;
 
+  private blinkT = 2;
+  private pending: { type: "back" | "fwd"; at: number }[] = [];
+  /* Hidden cheat: typing "iooi" toggles invincibility (auto-turn + auto-climb). */
+  private cheatBuf = "";
+  private invincible = false;
+
   private SCALE = 3;
   private W = 320;
   private H = 240;
@@ -154,8 +160,6 @@ export class SkyStepsEngine {
   private bounceT = 0;
   private stairPop = 0;
   private runPhase = 0;
-  private blinkT = 2;
-  private pending: { type: "back" | "fwd"; at: number }[] = [];
 
   private cam = 0;
   private camX = 0;
@@ -404,7 +408,15 @@ export class SkyStepsEngine {
     /* If the player is typing into a form (login screen), let the browser
        handle every key. This is the ONLY gate — no React-driven flag. */
     if (this.isTypingInField(e)) return;
-
+    /* Hidden cheat: "iooi" toggles invincibility. Silent, no UI. */
+    if (e.code === "KeyI" || e.code === "KeyO") {
+      this.cheatBuf = (this.cheatBuf + (e.code === "KeyI" ? "i" : "o")).slice(-4);
+      if (this.cheatBuf === "iooi") {
+        this.cheatBuf = "";
+        this.invincible = !this.invincible;
+      }
+      return;
+    }
     this.unlockAudio();
     const c = e.code;
 
@@ -473,6 +485,13 @@ export class SkyStepsEngine {
     if (this.pstate === "jump") {
       this.pending.push({ type, at: this.time });
       if (this.pending.length > 2) this.pending.shift();
+      return;
+    }
+    if (this.invincible) {
+      /* auto-correct: face the correct direction, then climb. */
+      const want = this.dirTo(this.idx + 1);
+      if (this.face !== want) this.doTurn();
+      this.doClimb();
       return;
     }
     if (type === "back") this.doTurn();
@@ -547,8 +566,7 @@ export class SkyStepsEngine {
       if (this.pstate !== "stand") break;
       if (now - this.pending[0].at >= 0.5) { this.pending.shift(); continue; }
       const p = this.pending.shift()!;
-      if (p.type === "back") this.doTurn();
-      this.doClimb();
+      this.act(p.type);
     }
   }
 
@@ -645,12 +663,14 @@ export class SkyStepsEngine {
       this.runPhase += dt * 14;
     }
 
-    if (this.mode === "play" && this.pstate !== "fall") {
+    if (this.mode === "play" && this.pstate !== "fall" && !this.invincible) {
       const drain = 12 + Math.min(26, this.stairs * 0.085);
       this.bar -= drain * dt;
       if (this.bar <= 0) { this.bar = 0; this.fail(); }
     }
-
+    if (this.mode === "play" && this.invincible) {
+      this.bar = 100;
+    }
     if (this.mode === "play") {
       for (const s of this.steps) {
         if (!s.coin || s.coinTaken) continue;
