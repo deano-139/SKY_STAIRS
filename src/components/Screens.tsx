@@ -159,74 +159,86 @@ export function StartScreen(props: {
   onToggleMute: () => void;
 }) {
   return (
-    <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-7 pointer-events-none">
-      <div className="flex items-start justify-between gap-3 pointer-events-auto">
-        <div className="flex items-center gap-2.5 chip px-3 py-2">
-          <span className="animate-floaty"><SkinAvatar skin={props.skin} size={40} /></span>
-          <div className="leading-tight">
-            <div className="text-sm font-body tracking-[0.22em] text-[#b9a5e8]">CLIMBER</div>
-            <div className="font-display text-[10px] text-[#fff3dc] mt-0.5">
-              {props.loggedIn ? props.username : props.skin.name}
+    <div className="absolute inset-0 pointer-events-none">
+      {/* Invisible full-screen tap layer — starts the game when the player
+          taps anywhere empty. On mobile, this is the primary way to start. */}
+      <button
+        onClick={props.onStart}
+        className="absolute inset-0 pointer-events-auto opacity-0 z-0"
+        aria-label="Start climbing"
+        tabIndex={-1}
+      />
+
+      {/* Visible layout, above the tap layer */}
+      <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-7 pointer-events-none z-10">
+        <div className="flex items-start justify-between gap-3 pointer-events-auto">
+          <div className="flex items-center gap-2.5 chip px-3 py-2">
+            <span className="animate-floaty"><SkinAvatar skin={props.skin} size={40} /></span>
+            <div className="leading-tight">
+              <div className="text-sm font-body tracking-[0.22em] text-[#b9a5e8]">CLIMBER</div>
+              <div className="font-display text-[10px] text-[#fff3dc] mt-0.5">
+                {props.loggedIn ? props.username : props.skin.name}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <div className="chip px-3 py-2 text-right leading-tight">
+              <div className="text-sm font-body tracking-[0.22em] text-[#b9a5e8]">BEST</div>
+              <div className="font-display text-[11px] text-[#3ff2c8] tabular-nums mt-0.5">{props.best}</div>
+            </div>
+            <WalletChip wallet={props.wallet} />
+            <SoundToggle muted={props.muted} onToggle={props.onToggleMute} />
+          </div>
+        </div>
+
+        <div className="pointer-events-none select-none -mt-4">
+          <div className="flex items-end gap-3">
+            <StairsGlyph className="w-12 h-12 sm:w-16 sm:h-16 animate-wobble shrink-0 mb-1" />
+            <div>
+              <h1 className="font-display leading-[1.1] text-3xl sm:text-5xl md:text-6xl">
+                <span className="text-[#ffd23f] pixel-shadow">SKY</span>
+                <span className="text-[#3ff2c8] pixel-shadow">STEPS</span>
+              </h1>
+              <p className="mt-3 max-w-xs text-lg sm:text-xl leading-snug text-[#e8d9ff]/95 font-body">
+                The staircase never ends. Your pixel legs disagree.
+              </p>
+              <div className="mt-3 font-display text-[10px] sm:text-xs text-[#ffd23f] blink pixel-shadow-sm">
+                TAP TO START · OR PRESS ENTER
+              </div>
+              <div className="mt-2 text-base font-body text-[#b9a5e8]">
+                Q / ← turn+climb · E / → climb
+              </div>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2.5">
-          <div className="chip px-3 py-2 text-right leading-tight">
-            <div className="text-sm font-body tracking-[0.22em] text-[#b9a5e8]">BEST</div>
-            <div className="font-display text-[11px] text-[#3ff2c8] tabular-nums mt-0.5">{props.best}</div>
+
+        {props.loggedIn && props.overview && (
+          <div className="pointer-events-auto mb-3 max-w-md">
+            <AccountCard overview={props.overview} />
           </div>
-          <WalletChip wallet={props.wallet} />
-          <SoundToggle muted={props.muted} onToggle={props.onToggleMute} />
-        </div>
-      </div>
+        )}
 
-      <div className="pointer-events-none select-none -mt-4">
-        <div className="flex items-end gap-3">
-          <StairsGlyph className="w-12 h-12 sm:w-16 sm:h-16 animate-wobble shrink-0 mb-1" />
-          <div>
-            <h1 className="font-display leading-[1.1] text-3xl sm:text-5xl md:text-6xl">
-              <span className="text-[#ffd23f] pixel-shadow">SKY</span>
-              <span className="text-[#3ff2c8] pixel-shadow">STEPS</span>
-            </h1>
-            <p className="mt-3 max-w-xs text-lg sm:text-xl leading-snug text-[#e8d9ff]/95 font-body">
-              The staircase never ends. Your pixel legs disagree.
-            </p>
-            <div className="mt-3 font-display text-[10px] sm:text-xs text-[#ffd23f] blink pixel-shadow-sm">
-              PRESS ANY SHIFT TO START
-            </div>
-            <div className="mt-2 text-base font-body text-[#b9a5e8]">
-              Q / ← turn+climb · E / → climb · ENTER start/restart
-            </div>
+        <div className="flex items-end justify-between gap-3 pointer-events-auto">
+          <div className="flex items-center gap-2">
+            {props.loggedIn ? (
+              <button onClick={props.onLogout} className="btn-arcade btn-coral px-4 h-12 text-[10px]">LOGOUT</button>
+            ) : (
+              <button onClick={props.onLogin} className="btn-arcade btn-mint px-4 h-12 text-[10px]">
+                LOGIN / SIGN UP
+              </button>
+            )}
           </div>
-        </div>
-      </div>
-
-      {props.loggedIn && props.overview && (
-        <div className="pointer-events-auto mb-3 max-w-md">
-          <AccountCard overview={props.overview} />
-        </div>
-      )}
-
-      <div className="flex items-end justify-between gap-3 pointer-events-auto">
-        <div className="flex items-center gap-2">
-          {props.loggedIn ? (
-            <button onClick={props.onLogout} className="btn-arcade btn-coral px-4 h-12 text-[10px]">LOGOUT</button>
-          ) : (
-            <button onClick={props.onLogin} className="btn-arcade btn-mint px-4 h-12 text-[10px]">
-              LOGIN / SIGN UP
+          <div className="flex items-end gap-3">
+            <button onClick={props.onLeaderboard} className="btn-arcade btn-plum px-4 h-14 text-[11px] flex items-center gap-2">
+              <TrophyIcon /> RANKS
             </button>
-          )}
-        </div>
-        <div className="flex items-end gap-3">
-          <button onClick={props.onLeaderboard} className="btn-arcade btn-plum px-4 h-14 text-[11px] flex items-center gap-2">
-            <TrophyIcon /> RANKS
-          </button>
-          <button onClick={props.onShop} className="btn-arcade btn-plum px-5 h-14 text-[11px]">
-            <CoinSvg size={18} /> SKINS
-          </button>
-          <button onClick={props.onStart} className="btn-arcade btn-primary px-8 h-16 text-sm sm:text-base animate-pop">
-            CLIMB
-          </button>
+            <button onClick={props.onShop} className="btn-arcade btn-plum px-5 h-14 text-[11px]">
+              <CoinSvg size={18} /> SKINS
+            </button>
+            <button onClick={props.onStart} className="btn-arcade btn-primary px-8 h-16 text-sm sm:text-base animate-pop">
+              CLIMB
+            </button>
+          </div>
         </div>
       </div>
     </div>

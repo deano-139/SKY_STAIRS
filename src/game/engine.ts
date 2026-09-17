@@ -1,7 +1,7 @@
 import { SKINS, type SkinDef } from "./skins";
 import { SFX, BGM } from "./audio";
 import {
-  SPR_STAND, SPR_JUMP, SPR_FALL, SPR_W, SPR_H,
+  SPR_W, SPR_H, resolveSprites,
   ACCESSORIES, COIN_SPR, COIN_PAL, ARROW_UP, ARROW_SIDE,
   CLOUD_SPR, CLOUD_PAL, MOON_SPR, MOON_PAL, PLANET_SPR, PLANET_PAL,
   WALKER_A, WALKER_B, WALKER_PAL, BIRD_A, BIRD_B, BIRD_PAL,
@@ -239,6 +239,7 @@ export class SkyStepsEngine {
   /* ------------------------------ public API ------------------------------ */
 
   start() {
+    if (this.mode === "play") return;
     this.mode = "play";
     this.paused = false;
     this.stairs = 0;
@@ -1262,23 +1263,28 @@ export class SkyStepsEngine {
     if (this.pstate === "fall") ctx.rotate(Math.sin(this.deathT * 18) * 0.22);
     ctx.scale(scx, scy);
 
-    const map = this.pstate === "fall" ? SPR_FALL : this.pstate === "jump" ? SPR_JUMP : SPR_STAND;
-    blit(ctx, map, pal, Math.round(-sprW / 2), -sprH, px, flip);
+    const fam = resolveSprites(skin);
+    const map =
+      this.pstate === "fall" ? fam.fall :
+      this.pstate === "jump" ? fam.jump :
+      fam.stand;
+      blit(ctx, map, pal, Math.round(-sprW / 2), -sprH, px, flip);
 
     const acc = ACCESSORIES[skin.accessory];
     if (acc) {
+      const off = fam.accessoryOffset ?? { dx: 0, dy: 0 };
+      const shifted = { ...acc, ox: acc.ox + off.dx, oy: acc.oy + off.dy };
       if (skin.accessory === "halo") {
         const hb = Math.round(Math.sin(this.time * 3) * 1);
-        const shifted = { ...acc, oy: acc.oy + hb };
-        blitAccessory(ctx, shifted, pal, Math.round(-sprW / 2), -sprH, px, flip);
+        blitAccessory(ctx, { ...shifted, oy: shifted.oy + hb }, pal, Math.round(-sprW / 2), -sprH, px, flip);
       } else {
-        blitAccessory(ctx, acc, pal, Math.round(-sprW / 2), -sprH, px, flip);
+        blitAccessory(ctx, shifted, pal, Math.round(-sprW / 2), -sprH, px, flip);
       }
       if (skin.accessory === "antenna" && Math.floor(this.time * 5) % 2 === 0) {
         ctx.fillStyle = "rgba(255,210,63,0.35)";
         const gx = Math.round(-sprW / 2 + (flip ? 7 : 6) * px - px);
-        ctx.fillRect(gx, -sprH + acc.oy * px - px, 5 * px, 5 * px);
-      }
+        ctx.fillRect(gx, -sprH + shifted.oy * px - px, 5 * px, 5 * px);
+     }
     }
     ctx.restore();
 

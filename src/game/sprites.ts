@@ -9,9 +9,41 @@ export type Palette = Record<string, string>;
 
 /* character legend:
    O outline · B body · D body dark · H body light · W belly
-   E eye white · P pupil · C blush · M mouth · S shoes            */
+   E eye white · P pupil · C blush · M mouth · S shoes
+   A accent · K accent dark · G gold/metal · R red · Y soft yellow
+   N green (sprout) · T accent tint · L light blue · U UI blue        */
 
-export const SPR_STAND: SpriteMap = [
+/* ============================================================= */
+/*  SILHOUETTE FAMILIES                                          */
+/*  Each family provides stand/jump/fall maps. Skins declare     */
+/*  a `family` and inherit these shapes, recolored via palette.  */
+/* ============================================================= */
+
+export type Family =
+  | "blob"
+  | "cat"
+  | "ghost"
+  | "robot"
+  | "bird"
+  | "knight"
+  | "fancy"
+  | "long"
+  | "wooden";
+
+export interface FamilySprites {
+  stand: SpriteMap;
+  jump: SpriteMap;
+  fall: SpriteMap;
+  /** Optional per-family offset applied to accessory anchors. */
+  accessoryOffset?: { dx: number; dy: number };
+}
+
+export const SPR_W = 16;
+export const SPR_H = 15;
+
+/* ------------------------------ BLOB ------------------------------ */
+
+const BLOB_STAND: SpriteMap = [
   "....OOOOOOOO....",
   "..OOBBBBBBBBOO..",
   ".OBBHHBBBBBBBBO.",
@@ -29,7 +61,7 @@ export const SPR_STAND: SpriteMap = [
   "...SSS....SSS...",
 ];
 
-export const SPR_JUMP: SpriteMap = [
+const BLOB_JUMP: SpriteMap = [
   "....OOOOOOOO....",
   "..OOBBBBBBBBOO..",
   ".OBBHHBBBBBBBBO.",
@@ -47,7 +79,7 @@ export const SPR_JUMP: SpriteMap = [
   ".SSS........SSS.",
 ];
 
-export const SPR_FALL: SpriteMap = [
+const BLOB_FALL: SpriteMap = [
   "....OOOOOOOO....",
   "..OOBBBBBBBBOO..",
   ".OBBHHBBBBBBBBO.",
@@ -65,8 +97,388 @@ export const SPR_FALL: SpriteMap = [
   ".SS..........SS.",
 ];
 
-export const SPR_W = 16;
-export const SPR_H = 15;
+/* ------------------------------ CAT ------------------------------ */
+
+const CAT_STAND: SpriteMap = [
+  "..O..O....O..O..",
+  ".OAO.OA..AO.OAO.",
+  ".OAOOOAOOOAOOAO.",
+  "OBBBBBBBBBBBBBBO",
+  "OBHHBBBBBBBBBBBO",
+  "OBHBBBBBBBBBBBBO",
+  "OBBEEBBBBBBEEBBO",
+  "OBBEPBBBBBBEPBBO",
+  "OBCBBBMMMMBBBCBO",
+  "OBBBBWWWWWBBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBBBBBBBBBBBBBO",
+  ".SS..........SS.",
+  ".SS..........SS.",
+];
+
+const CAT_JUMP: SpriteMap = [
+  "..O..O....O..O..",
+  ".OAO.OA..AO.OAO.",
+  ".OAOOOAOOOAOOAO.",
+  "OBBBBBBBBBBBBBBO",
+  "OBHHBBBBBBBBBBBO",
+  "OBHBBBBBBBBBBBBO",
+  "OBBEEBBBBBBEEBBO",
+  "OBBEPBBBBBBEPBBO",
+  "OBCBBBMMMMMMBBCBO",
+  "OBBBBWWWWWBBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBBBBBBBBBBBBBO",
+  "..SSS......SSS..",
+  ".SSS........SSS.",
+];
+
+const CAT_FALL: SpriteMap = [
+  "..O..O....O..O..",
+  ".OAO.OA..AO.OAO.",
+  ".OAOOOAOOOAOOAO.",
+  "OBBBBBBBBBBBBBBO",
+  "OBHHBBBBBBBBBBBO",
+  "OBHBBBBBBBBBBBBO",
+  "OBBEEBBBBBBEEBBO",
+  "OBBEPBBBBBBEPBBO",
+  "OBBBBBMMMMBBBBBO",
+  "OBBBBWWWWWBBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBBBBBBBBBBBBBO",
+  ".SS..........SS.",
+  "SS............SS",
+];
+
+/* ------------------------------ GHOST ------------------------------ */
+
+const GHOST_STAND: SpriteMap = [
+  "................",
+  "....OOOOOOOO....",
+  "..OOBBBBBBBBOO..",
+  ".OBBHHBBBBBBBBO.",
+  ".OBHHBBBBBBBBBO.",
+  "OBHBBBBBBBBBBBBO",
+  "OBBBBBBBBBBBBBBO",
+  "OBBEEBBBBBBEEBBO",
+  "OBBEPBBBBBBEPBBO",
+  "OBBBBBMMMMBBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBWWWWWWWWWBBBO",
+  "OBBBBBBBBBBBBBBO",
+  "OBBOBBOBBOBBOBBO",
+  ".B..B..B..B..B..",
+];
+
+const GHOST_JUMP: SpriteMap = [
+  "................",
+  "....OOOOOOOO....",
+  "..OOBBBBBBBBOO..",
+  ".OBBHHBBBBBBBBO.",
+  ".OBHHBBBBBBBBBO.",
+  "OBHBBBBBBBBBBBBO",
+  "OBBBBBBBBBBBBBBO",
+  "OBBEEBBBBBBEEBBO",
+  "OBBEPBBBBBBEPBBO",
+  "OBBBBBMMMMMMBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBWWWWWWWWWBBBO",
+  "OBBBBBBBBBBBBBBO",
+  "OBBOBBOBBOBBOBBO",
+  ".B..B..B..B..B..",
+];
+
+const GHOST_FALL: SpriteMap = [
+  "................",
+  "....OOOOOOOO....",
+  "..OOBBBBBBBBOO..",
+  ".OBBHHBBBBBBBBO.",
+  ".OBHHBBBBBBBBBO.",
+  "OBHBBBBBBBBBBBBO",
+  "OBBBBBBBBBBBBBBO",
+  "OBBEEBBBBBBEEBBO",
+  "OBBEPBBBBBBEPBBO",
+  "OBBBBBBMMBBBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBWWWWWWWWWBBBO",
+  "OBBBBBBBBBBBBBBO",
+  "OBBOBBOBBOBBOBBO",
+  ".B..B..B..B..B..",
+];
+
+/* ------------------------------ ROBOT ------------------------------ */
+
+const ROBOT_STAND: SpriteMap = [
+  ".......GG.......",
+  ".......KK.......",
+  "....OOOOOOOO....",
+  "..OOBBBBBBBBOO..",
+  ".OBBHHHHHHHHBBO.",
+  ".OBHHHHHHHHHHBO.",
+  "OBBBBBBBBBBBBBBO",
+  "OBBGGGGGGGGGGBBO",
+  "OBBEEEEEEEEEBBBO",
+  "OBBBBBBBBBBBBBBO",
+  "OBBBBWWWWWBBBBBO",
+  "OBBBBWWWWWBBBBBO",
+  "OBBBBBBBBBBBBBBO",
+  ".SSS........SSS.",
+  ".SSS........SSS.",
+];
+
+const ROBOT_JUMP: SpriteMap = [
+  ".......GG.......",
+  ".......KK.......",
+  "....OOOOOOOO....",
+  "..OOBBBBBBBBOO..",
+  ".OBBHHHHHHHHBBO.",
+  ".OBHHHHHHHHHHBO.",
+  "OBBBBBBBBBBBBBBO",
+  "OBBGGGGGGGGGGBBO",
+  "OBBEEEEEEEEEBBBO",
+  "OBBBBBBBBBBBBBBO",
+  "OBBBBWWWWWBBBBBO",
+  "OBBBBWWWWWBBBBBO",
+  "OBBBBBBBBBBBBBBO",
+  "..SSS......SSS..",
+  ".SSS........SSS.",
+];
+
+const ROBOT_FALL: SpriteMap = [
+  ".......GG.......",
+  ".......KK.......",
+  "....OOOOOOOO....",
+  "..OOBBBBBBBBOO..",
+  ".OBBHHHHHHHHBBO.",
+  ".OBHHHHHHHHHHBO.",
+  "OBBBBBBBBBBBBBBO",
+  "OBBGGGGGGGGGGBBO",
+  "OBBEEEEEEEEEBBBO",
+  "OBBBBBBBBBBBBBBO",
+  "OBBBBWWWWWBBBBBO",
+  "OBBBBWWWWWBBBBBO",
+  "OBBBBBBBBBBBBBBO",
+  ".SS..........SS.",
+  "SS............SS",
+];
+
+/* ------------------------------ BIRD ------------------------------ */
+
+const BIRD_STAND: SpriteMap = [
+  "................",
+  "....OOOOOOO.....",
+  "..OOBBBBBBBRO...",
+  ".OBBHHBBBBBRRO..",
+  ".OBHBBBBBBBRRO..",
+  "OBHBBBBBBBBBBBO.",
+  "OBBEEBBBBBBEBBO.",
+  "OBBEPBBBBBBEBBO.",
+  "OBBBBBBMMMBBBBO.",
+  "OBBBBBWWWWWBBBO.",
+  "OBBBBWWWWWWWBBO.",
+  "OBBBBWWWWWWWBBO.",
+  "OBBBBBBBBBBBBBO.",
+  "...SS.....SS....",
+  "...SS.....SS....",
+];
+
+const BIRD_JUMP: SpriteMap = [
+  "..AAAA..AAAA....",
+  ".AOOOAAOOOAO....",
+  "..OOBBBBBBBRO...",
+  ".OBBHHBBBBBRRO..",
+  ".OBHBBBBBBBRRO..",
+  "OBHBBBBBBBBBBBO.",
+  "OBBEEBBBBBBEBBO.",
+  "OBBEPBBBBBBEBBO.",
+  "OBBBBBMMMMMBBBO.",
+  "OBBBBBWWWWWBBBO.",
+  "OBBBBWWWWWWWBBO.",
+  "OBBBBWWWWWWWBBO.",
+  "OBBBBBBBBBBBBBO.",
+  "..SSS......SSS..",
+  ".SSS........SSS.",
+];
+
+const BIRD_FALL: SpriteMap = [
+  "..AAAA..AAAA....",
+  ".AOOOAAOOOAO....",
+  "..OOBBBBBBBRO...",
+  ".OBBHHBBBBBRRO..",
+  ".OBHBBBBBBBRRO..",
+  "OBHBBBBBBBBBBBO.",
+  "OBBEEBBBBBBEBBO.",
+  "OBBEPBBBBBBEBBO.",
+  "OBBBBBBMMMBBBBO.",
+  "OBBBBBWWWWWBBBO.",
+  "OBBBBWWWWWWWBBO.",
+  "OBBBBWWWWWWWBBO.",
+  "OBBBBBBBBBBBBBO.",
+  ".SS..........SS.",
+  "SS............SS",
+];
+
+/* ------------------------------ KNIGHT ------------------------------ */
+
+const KNIGHT_STAND: SpriteMap = [
+  ".......GG.......",
+  "......GGGG......",
+  "....OOOOOOOO....",
+  "..OOBBBBBBBBOO..",
+  ".OBBGGGGGGGGBBO.",
+  ".OBGGKKKKKKGGBO.",
+  "OBBGGGGGGGGGGBBO",
+  "OBBEEBBBBBBEEBBO",
+  "OBBEPBBBBBBEPBBO",
+  "OBBBBBBMMBBBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBBBBBBBBBBBBBO",
+  ".SSS........SSS.",
+  ".SSS........SSS.",
+];
+
+const KNIGHT_JUMP: SpriteMap = [
+  ".......GG.......",
+  "......GGGG......",
+  "....OOOOOOOO....",
+  "..OOBBBBBBBBOO..",
+  ".OBBGGGGGGGGBBO.",
+  ".OBGGKKKKKKGGBO.",
+  "OBBGGGGGGGGGGBBO",
+  "OBBEEBBBBBBEEBBO",
+  "OBBEPBBBBBBEPBBO",
+  "OBBBBMMMMMMBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBBBBBBBBBBBBBO",
+  "..SSS......SSS..",
+  ".SSS........SSS.",
+];
+
+const KNIGHT_FALL: SpriteMap = [
+  ".......GG.......",
+  "......GGGG......",
+  "....OOOOOOOO....",
+  "..OOBBBBBBBBOO..",
+  ".OBBGGGGGGGGBBO.",
+  ".OBGGKKKKKKGGBO.",
+  "OBBGGGGGGGGGGBBO",
+  "OBBEEBBBBBBEEBBO",
+  "OBBEPBBBBBBEPBBO",
+  "OBBBBBMMMMBBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBBWWWWWWWBBBBO",
+  "OBBBBBBBBBBBBBBO",
+  ".SS..........SS.",
+  "SS............SS",
+];
+
+/* ------------------------------ WOODEN ------------------------------ */
+/* Chunky log body with dark grain lines. */
+
+const WOODEN_STAND: SpriteMap = [
+  "....OOOOOOOO....",
+  "..OOBBBBBBBBOO..",
+  ".OBHHBBBBBBBBBO.",
+  ".OBHBBBBDBBBBDO.",
+  "OBHBBBBBDBBBBDBO",
+  "OBBBBBBBBDBBBDBO",
+  "OBBBBBBBBBDBBBBO",
+  "OBBEEBBBBBDBBBBO",
+  "OBBEPBBBBBBBBBBO",
+  "OBCBBBMMBBBBCBBO",
+  "OBBBBBBBBBBDBBBO",
+  "OBBBBBBBBBBDBBBO",
+  "OBBBBBBBBBDBBBBO",
+  "...SSS....SSS...",
+  "...SSS....SSS...",
+];
+
+const WOODEN_JUMP: SpriteMap = [
+  "....OOOOOOOO....",
+  "..OOBBBBBBBBOO..",
+  ".OBHHBBBBBBBBBO.",
+  ".OBHBBBBDBBBBDO.",
+  "OBHBBBBBDBBBBDBO",
+  "OBBBBBBBBDBBBDBO",
+  "OBBBBBBBBBDBBBBO",
+  "OBBEEBBBBBDBBBBO",
+  "OBBEPBBBBBBBBBBO",
+  "OBCBBBMMMMMMBBCBO",
+  "OBBBBBBBBBBDBBBO",
+  "OBBBBBBBBBBDBBBO",
+  "OBBBBBBBBBDBBBBO",
+  "..SSS......SSS..",
+  ".SSS........SSS.",
+];
+
+const WOODEN_FALL: SpriteMap = [
+  "....OOOOOOOO....",
+  "..OOBBBBBBBBOO..",
+  ".OBHHBBBBBBBBBO.",
+  ".OBHBBBBDBBBBDO.",
+  "OBHBBBBBDBBBBDBO",
+  "OBBBBBBBBDBBBDBO",
+  "OBBBBBBBBBDBBBBO",
+  "OBBEEBBBBBDBBBBO",
+  "OBBEPBBBBBBBBBBO",
+  "OBBBBBBMMBBBBBBO",
+  "OBBBBBBBBBBDBBBO",
+  "OBBBBBBBBBBDBBBO",
+  "OBBBBBBBBBDBBBBO",
+  "..SSS......SSS..",
+  ".SS..........SS.",
+];
+
+/* ------------------------------ FAMILY REGISTRY ------------------------------ */
+
+export const FAMILIES: Record<Family, FamilySprites> = {
+  blob:   { stand: BLOB_STAND,   jump: BLOB_JUMP,   fall: BLOB_FALL },
+  cat:    { stand: CAT_STAND,    jump: CAT_JUMP,    fall: CAT_FALL,
+            accessoryOffset: { dx: 0, dy: -1 } },
+  ghost:  { stand: GHOST_STAND,  jump: GHOST_JUMP,  fall: GHOST_FALL,
+            accessoryOffset: { dx: 0, dy: 1 } },
+  robot:  { stand: ROBOT_STAND,  jump: ROBOT_JUMP,  fall: ROBOT_FALL },
+  bird:   { stand: BIRD_STAND,   jump: BIRD_JUMP,   fall: BIRD_FALL },
+  knight: { stand: KNIGHT_STAND, jump: KNIGHT_JUMP, fall: KNIGHT_FALL,
+            accessoryOffset: { dx: 0, dy: -1 } },
+  fancy:  { stand: BLOB_STAND,   jump: BLOB_JUMP,   fall: BLOB_FALL },
+  long:   { stand: BLOB_STAND,   jump: BLOB_JUMP,   fall: BLOB_FALL },
+  wooden: { stand: WOODEN_STAND, jump: WOODEN_JUMP, fall: WOODEN_FALL },
+};
+
+/** Look up the sprite set for a family, defaulting to blob. */
+export function familySprites(family: Family | undefined): FamilySprites {
+  return FAMILIES[family ?? "blob"] ?? FAMILIES.blob;
+}
+
+/* ------------------------------ TIER C ------------------------------ */
+
+export interface SkinSpriteOverride {
+  stand: SpriteMap;
+  jump: SpriteMap;
+  fall: SpriteMap;
+}
+
+/* Filled in later — leave empty for now so nothing breaks. */
+export const SKIN_SPRITE_OVERRIDES: Record<string, SkinSpriteOverride> = {};
+
+/** Resolve the final sprite set for a skin, considering overrides. */
+export function resolveSprites(skin: SkinDef): FamilySprites {
+  const override = SKIN_SPRITE_OVERRIDES[skin.id];
+  if (override) return override;
+  return familySprites(skin.family);
+}
+
+/* ------------------------------ legacy exports ------------------------------ */
+
+export const SPR_STAND = BLOB_STAND;
+export const SPR_JUMP = BLOB_JUMP;
+export const SPR_FALL = BLOB_FALL;
 
 /* ------------------------- accessories ------------------------- */
 /* anchors are in sprite-pixel units relative to the 16x15 character */
@@ -162,6 +574,19 @@ export const ACC_GOGGLES: SpriteMap = [
   "KUUKKKKUUK",
 ];
 
+/* Bat — held over the shoulder, blade going up-and-right. */
+export const ACC_BAT: SpriteMap = [
+  "....AAA",
+  "...AAAA",
+  "..AAAA.",
+  ".AAAA..",
+  ".AAA...",
+  "AAK....",
+  "KK.....",
+  "KK.....",
+  "K......",
+];
+
 export interface AccPlacement {
   map: SpriteMap;
   ox: number;
@@ -181,6 +606,7 @@ export const ACCESSORIES: Record<string, AccPlacement> = {
   headphones: { map: ACC_HEADPHONES, ox: 0, oy: -3 },
   flower: { map: ACC_FLOWER, ox: 0, oy: 1 },
   goggles: { map: ACC_GOGGLES, ox: 3, oy: 3 },
+  bat: { map: ACC_BAT, ox: 11, oy: -3 },
 };
 
 /* --------------------------- pickups --------------------------- */
@@ -304,7 +730,6 @@ export const PLANET_PAL: Palette = { P: "#c98bff", D: "#8f5fd0", R: "#ffd9a0" };
 
 /* --------------------------- morning life --------------------------- */
 
-/* rooftop pedestrians — two walking frames, 6x9 */
 export const WALKER_A: SpriteMap = [
   ".HHHH.",
   ".FFFF.",
@@ -334,7 +759,6 @@ export const WALKER_PAL: Palette = {
   L: "#33415e",
 };
 
-/* birds — flap frames, 5x3 */
 export const BIRD_A: SpriteMap = [
   "W...W",
   ".WWW.",
@@ -347,7 +771,6 @@ export const BIRD_B: SpriteMap = [
 ];
 export const BIRD_PAL: Palette = { W: "#2f3f6e", B: "#4a5f9e" };
 
-/* little jet crossing the sky, 14x5 */
 export const PLANE_SPR: SpriteMap = [
   "......WW......",
   "TT.FFFFFFFFFF.",
@@ -362,7 +785,6 @@ export const PLANE_PAL: Palette = {
   N: "#ff5d7e",
 };
 
-/* hot-air balloon, 9x12 */
 export const BALLOON_SPR: SpriteMap = [
   "..RRRRR..",
   ".RWWRRWR.",
@@ -384,7 +806,6 @@ export const BALLOON_PAL: Palette = {
   K: "#b07a3e",
 };
 
-/* satellite drifting in space, 11x5 */
 export const SATELLITE_SPR: SpriteMap = [
   "PPP..BB..PPP",
   "PPP..BB..PPP",
@@ -398,15 +819,8 @@ export const SATELLITE_PAL: Palette = {
   D: "#9fb4d8",
 };
 
-
-
 /* --------------------------- renderers --------------------------- */
 
-/**
- * Blit a sprite map pixel by pixel.
- * (x, y) is the top-left in canvas pixels; px = size of one sprite pixel.
- * flip mirrors horizontally (used for facing left).
- */
 export function blit(
   ctx: CanvasRenderingContext2D,
   map: SpriteMap,
@@ -431,7 +845,6 @@ export function blit(
   }
 }
 
-/** blit with a horizontal squash (coin spin) — keeps center aligned */
 export function blitSquash(
   ctx: CanvasRenderingContext2D,
   map: SpriteMap,
@@ -450,7 +863,7 @@ export function blitSquash(
       if (ch === ".") continue;
       const col = pal[ch];
       if (!col) continue;
-      const rel = (c + 0.5) / w - 0.5; // -0.5 .. 0.5
+      const rel = (c + 0.5) / w - 0.5;
       if (Math.abs(rel) > half / w) continue;
       ctx.fillStyle = col;
       ctx.fillRect(Math.round(cx + rel * w * hscale * px), y + r * px, px, px);
@@ -458,7 +871,6 @@ export function blitSquash(
   }
 }
 
-/** Anchor-aware accessory blit that respects the character's facing. */
 export function blitAccessory(
   ctx: CanvasRenderingContext2D,
   acc: AccPlacement,

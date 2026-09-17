@@ -1,3 +1,27 @@
+import type { Family } from "./sprites";
+
+export interface SkinDef {
+  id: string;
+  name: string;
+  price: number;
+  blurb: string;
+  body: string;
+  belly: string;
+  outline: string;
+  accent: string;
+  trail: string;
+  trailKind: TrailKind;
+  accessory: Accessory;
+  freckles?: boolean;
+  turnFx: TurnFx;
+  turnSnd: TurnSnd;
+  turnColor: string;
+  /** Milestone reward: unlocked forever the first time you climb this many stairs in one run. */
+  unlockAt?: number;
+  /** Silhouette family. Defaults to "blob" if omitted. */
+  family?: Family;
+}
+
 export type Accessory =
   | "none"
   | "cap"
@@ -18,7 +42,8 @@ export type Accessory =
   | "beanie"
   | "party"
   | "scarf"
-  | "monocle";
+  | "monocle"
+  | "bat";
 
 export type TrailKind = "puff" | "spark" | "flame" | "star";
 
@@ -42,29 +67,9 @@ export type TurnSnd =
   | "pop" | "woosh" | "chirp" | "zap" | "bling" | "whistle" | "buzz" | "chime"
   | "boing" | "twinkle" | "thud" | "splash";
 
-export interface SkinDef {
-  id: string;
-  name: string;
-  price: number;
-  blurb: string;
-  body: string;
-  belly: string;
-  outline: string;
-  accent: string;
-  trail: string;
-  trailKind: TrailKind;
-  accessory: Accessory;
-  freckles?: boolean;
-  turnFx: TurnFx;
-  turnSnd: TurnSnd;
-  turnColor: string;
-  /** Milestone reward: unlocked forever the first time you climb this many stairs in one run. */
-  unlockAt?: number;
-}
-
 export const SKINS: SkinDef[] = [
   /* ================================================================
-     TIER 0 — STARTER (free, always available)
+     TIER 0 — STARTER
      ================================================================ */
   {
     id: "bloo",
@@ -81,6 +86,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "ring",
     turnSnd: "pop",
     turnColor: "#9ef2ff",
+    family: "blob",
   },
 
   /* ================================================================
@@ -101,6 +107,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "confetti",
     turnSnd: "whistle",
     turnColor: "#ff8c42",
+    family: "blob",
   },
   {
     id: "momo",
@@ -117,6 +124,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "sparkle",
     turnSnd: "chirp",
     turnColor: "#ffb1cf",
+    family: "cat",
   },
   {
     id: "kage",
@@ -133,6 +141,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "zap",
     turnSnd: "zap",
     turnColor: "#8fa0ff",
+    family: "knight",
   },
 
   /* ================================================================
@@ -153,6 +162,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "bubble",
     turnSnd: "chirp",
     turnColor: "#aef29e",
+    family: "blob",
   },
   {
     id: "gloop",
@@ -169,6 +179,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "bubble",
     turnSnd: "buzz",
     turnColor: "#c4ff4d",
+    family: "blob",
   },
   {
     id: "rey",
@@ -185,6 +196,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "sparkle",
     turnSnd: "bling",
     turnColor: "#ffd23f",
+    family: "fancy",
   },
   {
     id: "bones",
@@ -201,6 +213,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "poof",
     turnSnd: "pop",
     turnColor: "#a8dadc",
+    family: "ghost",
   },
   {
     id: "sunny",
@@ -217,6 +230,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "sparkle",
     turnSnd: "pop",
     turnColor: "#ffe9a3",
+    family: "cat",
   },
   {
     id: "unit7",
@@ -233,6 +247,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "zap",
     turnSnd: "buzz",
     turnColor: "#aefcff",
+    family: "robot",
   },
 
   /* ================================================================
@@ -253,6 +268,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "bubble",
     turnSnd: "whistle",
     turnColor: "#adc178",
+    family: "blob",
   },
   {
     id: "vapor",
@@ -269,6 +285,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "confetti",
     turnSnd: "zap",
     turnColor: "#00ffff",
+    family: "robot",
   },
   {
     id: "dash",
@@ -285,6 +302,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "zap",
     turnSnd: "buzz",
     turnColor: "#ff9d94",
+    family: "robot",
   },
   {
     id: "ember",
@@ -301,6 +319,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "flame",
     turnSnd: "woosh",
     turnColor: "#ffb347",
+    family: "knight",
   },
   {
     id: "frost",
@@ -317,6 +336,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "ring",
     turnSnd: "chime",
     turnColor: "#a8dedc",
+    family: "ghost",
   },
 
   /* ================================================================
@@ -338,6 +358,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "stardust",
     turnSnd: "chime",
     turnColor: "#e6dcff",
+    family: "fancy",
   },
   {
     id: "honey",
@@ -354,6 +375,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "bubble",
     turnSnd: "buzz",
     turnColor: "#ffb703",
+    family: "cat",
   },
   {
     id: "nova",
@@ -371,6 +393,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "stardust",
     turnSnd: "chime",
     turnColor: "#fff3b0",
+    family: "fancy",
   },
   {
     id: "prism",
@@ -388,6 +411,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "confetti",
     turnSnd: "bling",
     turnColor: "#ffeb3b",
+    family: "fancy",
   },
 
   /* ================================================================
@@ -408,6 +432,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "stardust",
     turnSnd: "woosh",
     turnColor: "#7b2cbf",
+    family: "ghost",
   },
   {
     id: "nebula",
@@ -425,11 +450,11 @@ export const SKINS: SkinDef[] = [
     turnFx: "stardust",
     turnSnd: "chime",
     turnColor: "#ffe5ec",
+    family: "fancy",
   },
 
   /* ================================================================
-     MILESTONE CLIMBERS — earned by climbing (unlockAt)
-     Sorted by unlockAt ascending
+     MILESTONE CLIMBERS — earned by climbing
      ================================================================ */
   {
     id: "zip",
@@ -447,6 +472,7 @@ export const SKINS: SkinDef[] = [
     turnSnd: "buzz",
     turnColor: "#d8ff7a",
     unlockAt: 100,
+    family: "robot",
   },
   {
     id: "bubba",
@@ -464,6 +490,7 @@ export const SKINS: SkinDef[] = [
     turnSnd: "pop",
     turnColor: "#f2dcb8",
     unlockAt: 200,
+    family: "cat",
   },
   {
     id: "sarge",
@@ -481,6 +508,7 @@ export const SKINS: SkinDef[] = [
     turnSnd: "whistle",
     turnColor: "#c8e06a",
     unlockAt: 300,
+    family: "knight",
   },
   {
     id: "wisp",
@@ -499,6 +527,7 @@ export const SKINS: SkinDef[] = [
     turnSnd: "chime",
     turnColor: "#ffffff",
     unlockAt: 400,
+    family: "ghost",
   },
   {
     id: "rex",
@@ -516,6 +545,7 @@ export const SKINS: SkinDef[] = [
     turnSnd: "woosh",
     turnColor: "#ffb347",
     unlockAt: 500,
+    family: "long",
   },
   {
     id: "aero",
@@ -533,6 +563,7 @@ export const SKINS: SkinDef[] = [
     turnSnd: "zap",
     turnColor: "#00f5d4",
     unlockAt: 750,
+    family: "bird",
   },
   {
     id: "titan",
@@ -550,6 +581,7 @@ export const SKINS: SkinDef[] = [
     turnSnd: "woosh",
     turnColor: "#9a8c98",
     unlockAt: 1000,
+    family: "knight",
   },
   {
     id: "deity",
@@ -568,13 +600,12 @@ export const SKINS: SkinDef[] = [
     turnSnd: "chime",
     turnColor: "#fff59d",
     unlockAt: 2000,
+    family: "fancy",
   },
 
   /* ================================================================
-     NEW ADDITIONS — filling gaps & expanding variety
+     NEW ADDITIONS
      ================================================================ */
-
-  /* --- Early game gap fillers (150–400) --- */
   {
     id: "pixel",
     name: "Pixel",
@@ -590,6 +621,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "zap",
     turnSnd: "buzz",
     turnColor: "#5cff5c",
+    family: "robot",
   },
   {
     id: "moss",
@@ -606,6 +638,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "leaf",
     turnSnd: "chirp",
     turnColor: "#a8c87a",
+    family: "blob",
   },
   {
     id: "coral",
@@ -617,14 +650,13 @@ export const SKINS: SkinDef[] = [
     outline: "#b03a20",
     accent: "#ffb347",
     trail: "#ffc4a8",
-    trailKind: "bubble" as unknown as TrailKind,
+    trailKind: "puff",
     accessory: "flower",
     turnFx: "bubble",
     turnSnd: "splash",
     turnColor: "#ffb347",
+    family: "blob",
   },
-
-  /* --- Mid game gap fillers (550–950) --- */
   {
     id: "sprocket",
     name: "Sprocket",
@@ -640,6 +672,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "poof",
     turnSnd: "thud",
     turnColor: "#e8c87a",
+    family: "robot",
   },
   {
     id: "berry",
@@ -656,6 +689,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "heart",
     turnSnd: "twinkle",
     turnColor: "#ff8fd4",
+    family: "cat",
   },
   {
     id: "cloud",
@@ -672,6 +706,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "poof",
     turnSnd: "woosh",
     turnColor: "#d0e8ff",
+    family: "ghost",
   },
   {
     id: "knight",
@@ -688,6 +723,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "ring",
     turnSnd: "chime",
     turnColor: "#ffd700",
+    family: "knight",
   },
   {
     id: "jester",
@@ -704,9 +740,8 @@ export const SKINS: SkinDef[] = [
     turnFx: "confetti",
     turnSnd: "boing",
     turnColor: "#ff4500",
+    family: "fancy",
   },
-
-  /* --- High end gap fillers (1600–3000) --- */
   {
     id: "aurora",
     name: "Aurora",
@@ -723,6 +758,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "stardust",
     turnSnd: "twinkle",
     turnColor: "#00ffcc",
+    family: "fancy",
   },
   {
     id: "pharaoh",
@@ -739,6 +775,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "sparkle",
     turnSnd: "bling",
     turnColor: "#f5e6a8",
+    family: "knight",
   },
   {
     id: "cyber",
@@ -755,6 +792,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "zap",
     turnSnd: "zap",
     turnColor: "#00ffcc",
+    family: "robot",
   },
   {
     id: "sakura",
@@ -772,6 +810,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "leaf",
     turnSnd: "chime",
     turnColor: "#ffd0d8",
+    family: "cat",
   },
   {
     id: "obsidian",
@@ -788,9 +827,8 @@ export const SKINS: SkinDef[] = [
     turnFx: "flame",
     turnSnd: "woosh",
     turnColor: "#ff4500",
+    family: "knight",
   },
-
-  /* --- Ultra premium (6000+) --- */
   {
     id: "eternal",
     name: "Eternal",
@@ -807,6 +845,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "stardust",
     turnSnd: "chime",
     turnColor: "#ffd700",
+    family: "fancy",
   },
   {
     id: "omega",
@@ -824,9 +863,8 @@ export const SKINS: SkinDef[] = [
     turnFx: "stardust",
     turnSnd: "chime",
     turnColor: "#ff00ff",
+    family: "fancy",
   },
-
-  /* --- Additional milestone climbers (1500, 3000) --- */
   {
     id: "summit",
     name: "Summit",
@@ -843,6 +881,7 @@ export const SKINS: SkinDef[] = [
     turnSnd: "woosh",
     turnColor: "#ffffff",
     unlockAt: 1500,
+    family: "bird",
   },
   {
     id: "infinity",
@@ -861,9 +900,8 @@ export const SKINS: SkinDef[] = [
     turnSnd: "chime",
     turnColor: "#00ffff",
     unlockAt: 3000,
+    family: "ghost",
   },
-
-  /* --- Seasonal / special event vibes --- */
   {
     id: "jolly",
     name: "Jolly",
@@ -879,6 +917,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "snow",
     turnSnd: "chime",
     turnColor: "#ffffff",
+    family: "knight",
   },
   {
     id: "spooky",
@@ -895,6 +934,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "poof",
     turnSnd: "thud",
     turnColor: "#ff7518",
+    family: "ghost",
   },
   {
     id: "lucky",
@@ -911,9 +951,8 @@ export const SKINS: SkinDef[] = [
     turnFx: "sparkle",
     turnSnd: "bling",
     turnColor: "#ffd700",
+    family: "cat",
   },
-
-  /* --- Cute / cozy additions --- */
   {
     id: "mochi",
     name: "Mochi",
@@ -929,6 +968,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "heart",
     turnSnd: "pop",
     turnColor: "#ffd0e0",
+    family: "cat",
   },
   {
     id: "toast",
@@ -945,6 +985,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "poof",
     turnSnd: "pop",
     turnColor: "#f5deb3",
+    family: "blob",
   },
   {
     id: "noodle",
@@ -961,6 +1002,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "ring",
     turnSnd: "boing",
     turnColor: "#fef9e7",
+    family: "long",
   },
   {
     id: "pebble",
@@ -977,9 +1019,8 @@ export const SKINS: SkinDef[] = [
     turnFx: "ring",
     turnSnd: "thud",
     turnColor: "#d3d3d3",
+    family: "blob",
   },
-
-  /* --- Edgy / cool additions --- */
   {
     id: "raven",
     name: "Raven",
@@ -995,6 +1036,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "poof",
     turnSnd: "woosh",
     turnColor: "#8b0000",
+    family: "bird",
   },
   {
     id: "viper",
@@ -1011,6 +1053,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "zap",
     turnSnd: "zap",
     turnColor: "#ffff00",
+    family: "long",
   },
   {
     id: "phantom",
@@ -1028,9 +1071,8 @@ export const SKINS: SkinDef[] = [
     turnFx: "stardust",
     turnSnd: "woosh",
     turnColor: "#d8bfd8",
+    family: "ghost",
   },
-
-  /* --- Silly / fun additions --- */
   {
     id: "disco",
     name: "Disco",
@@ -1046,6 +1088,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "confetti",
     turnSnd: "bling",
     turnColor: "#ffff00",
+    family: "fancy",
   },
   {
     id: "pirate",
@@ -1062,6 +1105,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "ring",
     turnSnd: "woosh",
     turnColor: "#ff0000",
+    family: "knight",
   },
   {
     id: "ninja",
@@ -1078,9 +1122,8 @@ export const SKINS: SkinDef[] = [
     turnFx: "poof",
     turnSnd: "woosh",
     turnColor: "#ff0000",
+    family: "knight",
   },
-
-  /* --- Cosmic / ethereal additions --- */
   {
     id: "comet",
     name: "Comet",
@@ -1096,6 +1139,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "stardust",
     turnSnd: "twinkle",
     turnColor: "#e0f8ff",
+    family: "bird",
   },
   {
     id: "quasar",
@@ -1112,6 +1156,7 @@ export const SKINS: SkinDef[] = [
     turnFx: "stardust",
     turnSnd: "twinkle",
     turnColor: "#ffffe0",
+    family: "fancy",
   },
   {
     id: "eclipse",
@@ -1128,6 +1173,29 @@ export const SKINS: SkinDef[] = [
     turnFx: "ring",
     turnSnd: "woosh",
     turnColor: "#ff8c00",
+    family: "ghost",
+  },
+
+  /* ================================================================
+     SPECIAL GUEST — Loggo
+     ================================================================ */
+  {
+    id: "loggo",
+    name: "Loggo",
+    price: 0,
+    blurb: "A wooden log that picked up a bat. Tongue twister approved.",
+    body: "#c58a4a",
+    belly: "#a06a30",
+    outline: "#5c3a17",
+    accent: "#8a5a24",
+    trail: "#e6c290",
+    trailKind: "puff",
+    accessory: "bat",
+    turnFx: "poof",
+    turnSnd: "thud",
+    turnColor: "#c58a4a",
+    unlockAt: 1337,
+    family: "wooden",
   },
 ];
 

@@ -1,12 +1,20 @@
 import type { SkinDef } from "../game/skins";
-import { SPR_STAND, ACCESSORIES, charPalette, type SpriteMap, type Palette } from "../game/sprites";
+import { resolveSprites, ACCESSORIES, charPalette, type SpriteMap } from "../game/sprites";
 
 /** Pixel-art preview that mirrors the in-game canvas sprite. */
 export default function SkinAvatar({ skin, size = 96 }: { skin: SkinDef; size?: number }) {
   const pal = charPalette(skin);
   const acc = ACCESSORIES[skin.accessory];
-  const maps: { map: SpriteMap; ox: number; oy: number }[] = [{ map: SPR_STAND, ox: 0, oy: 0 }];
-  if (acc) maps.push({ map: acc.map, ox: acc.ox, oy: acc.oy });
+  const fam = resolveSprites(skin);
+
+  const maps: { map: SpriteMap; ox: number; oy: number }[] = [
+    { map: fam.stand, ox: 0, oy: 0 },
+  ];
+
+  if (acc) {
+    const off = fam.accessoryOffset ?? { dx: 0, dy: 0 };
+    maps.push({ map: acc.map, ox: acc.ox + off.dx, oy: acc.oy + off.dy });
+  }
 
   const rects: { x: number; y: number; c: string }[] = [];
   for (const { map, ox, oy } of maps) {
