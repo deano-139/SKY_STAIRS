@@ -31,6 +31,9 @@ jobs:
         env:
           VITE_TALO_KEY: ${{ secrets.VITE_TALO_KEY }}
 
+      - name: Add Android platform
+        run: npx cap add android
+
       - name: Capacitor sync
         run: npx cap sync android
 
