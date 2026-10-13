@@ -61,7 +61,8 @@ interface FloatText {
 interface Star { x: number; y: number; s: number; tw: number; }
 interface Cloud { x: number; y: number; s: number; }
 
-const JUMP_T = 0.135;
+const NORMAL_JUMP_T = 0.135;
+const FAST_JUMP_T = 0.05;
 const TURN_T = 0.11;
 const SAVE_ALT = 700;
 const MAX_RUN = 7;
@@ -116,10 +117,13 @@ export class SkyStepsEngine {
   /* Hidden cheat: typing "iooi" toggles invincibility (auto-turn + auto-climb). */
   private cheatBuf = "";
   private invincible = false;
-  /* Hidden cheat: typing "6767" toggles auto-climb (3 steps/sec). */
+  /* Hidden cheat: typing "6767" toggles auto-climb. */
   private cheatBuf2 = "";
   private autoClimb = false;
   private autoClimbAccum = 0;
+  /** Current jump duration in seconds. Normal play uses NORMAL_JUMP_T,
+      the auto-climb cheat shortens it to FAST_JUMP_T. */
+  private jumpT = NORMAL_JUMP_T;
 
   private SCALE = 3;
   private W = 320;
@@ -413,6 +417,7 @@ export class SkyStepsEngine {
     /* If the player is typing into a form (login screen), let the browser
        handle every key. This is the ONLY gate — no React-driven flag. */
     if (this.isTypingInField(e)) return;
+
     /* Hidden cheat: "iooi" toggles invincibility. Silent, no UI. */
     if (e.code === "KeyI" || e.code === "KeyO") {
       this.cheatBuf = (this.cheatBuf + (e.code === "KeyI" ? "i" : "o")).slice(-4);
@@ -434,9 +439,13 @@ export class SkyStepsEngine {
         this.cheatBuf2 = "";
         this.autoClimb = !this.autoClimb;
         this.autoClimbAccum = 0;
+        /* Shorten the hop while auto-climbing so the fast tick rate
+           can actually keep up. Restore the normal duration when off. */
+        this.jumpT = this.autoClimb ? FAST_JUMP_T : NORMAL_JUMP_T;
       }
       return;
     }
+
     this.unlockAudio();
     const c = e.code;
 
@@ -668,7 +677,7 @@ export class SkyStepsEngine {
     }
 
     if (this.pstate === "jump") {
-      this.jt += dt / JUMP_T;
+      this.jt += dt / this.jumpT;
       this.runPhase += dt * 26;
       const t = clamp(this.jt, 0, 1);
       const te = 1 - Math.pow(1 - t, 3);
@@ -694,7 +703,7 @@ export class SkyStepsEngine {
     /* Auto-climb: attempt a step 3 times per second while active. */
     if (this.autoClimb && this.mode === "play" && this.pstate === "stand") {
       this.autoClimbAccum += dt;
-      const period = 1 / 50;
+      const period = 1 / 3;
       while (this.autoClimbAccum >= period) {
         this.autoClimbAccum -= period;
         /* Face the correct direction, then climb — same logic as invincible. */
