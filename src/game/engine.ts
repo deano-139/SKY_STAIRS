@@ -694,7 +694,7 @@ export class SkyStepsEngine {
     /* Auto-climb: attempt a step 3 times per second while active. */
     if (this.autoClimb && this.mode === "play" && this.pstate === "stand") {
       this.autoClimbAccum += dt;
-      const period = 1 / 10;
+      const period = 1 / 50;
       while (this.autoClimbAccum >= period) {
         this.autoClimbAccum -= period;
         /* Face the correct direction, then climb — same logic as invincible. */
