@@ -116,6 +116,10 @@ export class SkyStepsEngine {
   /* Hidden cheat: typing "iooi" toggles invincibility (auto-turn + auto-climb). */
   private cheatBuf = "";
   private invincible = false;
+  /* Hidden cheat: typing "6767" toggles auto-climb (3 steps/sec). */
+  private cheatBuf2 = "";
+  private autoClimb = false;
+  private autoClimbAccum = 0;
 
   private SCALE = 3;
   private W = 320;
@@ -418,6 +422,21 @@ export class SkyStepsEngine {
       }
       return;
     }
+
+    /* Hidden cheat: "6767" toggles auto-climb. Silent, no UI. */
+    if (
+      e.code === "Digit6" || e.code === "Digit7" ||
+      e.code === "Numpad6" || e.code === "Numpad7"
+    ) {
+      const d = e.code.endsWith("6") ? "6" : "7";
+      this.cheatBuf2 = (this.cheatBuf2 + d).slice(-4);
+      if (this.cheatBuf2 === "6767") {
+        this.cheatBuf2 = "";
+        this.autoClimb = !this.autoClimb;
+        this.autoClimbAccum = 0;
+      }
+      return;
+    }
     this.unlockAudio();
     const c = e.code;
 
@@ -671,6 +690,21 @@ export class SkyStepsEngine {
     }
     if (this.mode === "play" && this.invincible) {
       this.bar = 100;
+    }
+    /* Auto-climb: attempt a step 3 times per second while active. */
+    if (this.autoClimb && this.mode === "play" && this.pstate === "stand") {
+      this.autoClimbAccum += dt;
+      const period = 1 / 3;
+      while (this.autoClimbAccum >= period) {
+        this.autoClimbAccum -= period;
+        /* Face the correct direction, then climb — same logic as invincible. */
+        const want = this.dirTo(this.idx + 1);
+        if (this.face !== want) this.doTurn();
+        this.doClimb();
+        if (this.pstate !== "stand") break; // mid-hop, stop consuming ticks
+      }
+    } else {
+      this.autoClimbAccum = 0;
     }
     if (this.mode === "play") {
       for (const s of this.steps) {
